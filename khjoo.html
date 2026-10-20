@@ -68,7 +68,7 @@ const maps={forest:{w:2200,h:1400},village:{w:900,h:900},forge:{w:620,h:460},blu
 let dashCooldown=0,dashInvuln=0,dashTrail=[];
 const SKILL_NAMES={wave:'🌊 검기',smash:'💥 강타',fireball:'🔥 파이어볼',melody:'🎵 치유의 선율',berserk:'🔥 광폭화',lightdash:'⚡ 번개 질주',shadow:'👤 그림자 분신',thorns:'🌿 가시 덩굴',multishot:'🗡️ 연속 베기',poison:'☠️ 맹독 단검',trap:'🌫️ 연막탄',rain:'⚡ 암살 돌진',fortify:'🛡️ 철벽 태세',bulwark:'🔰 수호의 방벽',immortal:'💎 불굴의 요새',shieldrush:'💥 방패 돌격'};
 let playerClass=null;const CLASS_SKILLS={warrior:['wave','smash','berserk','lightdash'],mage:['fireball','melody','shadow','thorns'],rogue:['multishot','poison','trap','rain'],guardian:['fortify','bulwark','immortal','shieldrush']};function classCanUse(k){return !!playerClass&&!!CLASS_SKILLS[playerClass]&&CLASS_SKILLS[playerClass].includes(k)}
-const GUARDIAN_SKILLS=['fortify','bulwark','immortal','shieldrush'];let guardianLearned={},guardianCooldowns={},guardianFortify=0,guardianWall=0,guardianInvincible=0,guardianWallDir={x:1,y:0};
+const GUARDIAN_SKILLS=['fortify','bulwark','immortal','shieldrush'];let guardianLearned={},guardianCooldowns={},guardianFortify=0,guardianWall=0,guardianInvincible=0,guardianWallDir={x:1,y:0},guardianRush=null;
 const ARCHER_SKILLS=['multishot','poison','trap','rain'];let archerLearned={};let archerCooldowns={};const SKILL_ORDER=['wave','smash','fireball','melody','berserk','lightdash','shadow','thorns',...ARCHER_SKILLS,...GUARDIAN_SKILLS];
 let equippedSkills=[];
 function skillLearned(k){if(GUARDIAN_SKILLS.includes(k))return !!guardianLearned[k];if(ARCHER_SKILLS.includes(k))return !!archerLearned[k];return k==='wave'?learnedWave:k==='smash'?learnedSmash:k==='fireball'?learnedFireball:k==='melody'?learnedMelody:k==='berserk'?learnedBerserk:k==='lightdash'?learnedLightdash:k==='shadow'?learnedShadow:learnedThorns}
@@ -447,6 +447,7 @@ function defenseReduction(){return Math.min(90,Math.max(0,totalDefense()))/100}
 function reducedDamage(amount){if(playerClass==='guardian'&&guardianInvincible>0)return 0;return Math.max(0,Math.max(1,amount*(1-defenseReduction()))*(playerClass==='guardian'&&guardianFortify>0?.3:1))}
 function guardianBlocks(x,y){if(playerClass!=='guardian'||guardianWall<=0||!Number.isFinite(x)||!Number.isFinite(y))return false;const dx=x-player.x,dy=y-player.y,along=dx*guardianWallDir.x+dy*guardianWallDir.y;return along>=-5&&along<=450&&Math.abs(dx*guardianWallDir.y-dy*guardianWallDir.x)<=115}
 function guardianHurt(amount,x,y){if(guardianBlocks(x,y))return;hurtPlayer(amount)}
+function guardianBarrierIntercept(x0,y0,x1,y1){if(playerClass!=='guardian'||guardianWall<=0)return false;const d=guardianWallDir,cx=player.x+d.x*65,cy=player.y+d.y*65,a0=(x0-cx)*d.x+(y0-cy)*d.y,a1=(x1-cx)*d.x+(y1-cy)*d.y;if(a0*a1>0)return false;const t=a0/(a0-a1||1);if(t<0||t>1)return false;const ix=x0+(x1-x0)*t,iy=y0+(y1-y0)*t;return Math.abs((ix-cx)*d.y-(iy-cy)*d.x)<=112}
 function hurtPlayer(amount){if(dashInvuln>0||playerClass==='guardian'&&guardianInvincible>0)return;let actual=reducedDamage(amount);if(evolutionShield>0){const absorbed=Math.min(evolutionShield,actual);evolutionShield-=absorbed;actual-=absorbed}hp=Math.max(0,hp-actual);timeSinceHit=0;regenClock=0;trailWait=.65;if(hp<=0){hp=maxPlayerHp();displayedHp=maxPlayerHp();hpTrail=maxPlayerHp();stunTime=0;slowTime=0;switchMap('village');gold=Math.max(0,gold-5);say('쓰러졌어요! 마을에서 다시 시작합니다. 골드 5개를 잃었어요.')}}
 function slimePositions(cx,cy){
  const points=[],radius=22,minGap=49;
@@ -531,7 +532,7 @@ function updateCrystalBoss(b,dt){
  }
  if(b.crystalPause>0)return;
  const d=Math.hypot(player.x-b.x,player.y-b.y);
- if(d<75){b.cool-=dt;if(b.cool<=0){hurtPlayer(Math.ceil(6*b.scale));b.cool=1.5}}
+ if(d<75){b.cool-=dt;if(b.cool<=0){guardianHurt(Math.ceil(6*b.scale),b.x,b.y);b.cool=1.5}}
  const available=b.crystalCooldowns.map((t,i)=>({t,i})).filter(v=>v.t<=0&&(b.phase2||v.i!==4));
  if(available.length){
   // Alternate patterns instead of chaining more than two attacks.
@@ -753,7 +754,7 @@ function updateBoss(b,dt){
    b.chargeDistance+=Math.hypot(nx-b.x,ny-b.y);b.x=nx;b.y=ny;
    b.ghostClock=(b.ghostClock||0)+dt;
    if(b.ghostClock>=.035){b.ghostClock=0;bossGhosts.push({x:oldX,y:oldY,life:.27,max:.27});bossGroundMarks.push({x:oldX,y:oldY,kind:'charge',life:1.1,max:1.1})}
-   if(Math.hypot(player.x-b.x,player.y-b.y)<58&&b.chargeTime<=0){hurtPlayer(8);b.chargeTime=1}
+   if(Math.hypot(player.x-b.x,player.y-b.y)<58&&b.chargeTime<=0){guardianHurt(8,b.x,b.y);b.chargeTime=1}
    if(b.chargeDistance>=209||b.skillTimer<=0||step<=0){
     b.chargeChain=Math.max(0,(b.chargeChain||1)-1);
     if(b.chargeChain>0){b.skill='charge';b.skillTimer=.52;b.chargeDistance=0;b.chargeTime=0}
@@ -769,7 +770,7 @@ function updateBoss(b,dt){
       const px=Math.cos(angle),py=Math.sin(angle);
       player.x=clamp(b.x+px*155,24,world.w-24);
       player.y=clamp(b.y+py*155,90,world.h-24);
-      hurtPlayer(8);
+      guardianHurt(8,b.x,b.y);
       if(stunImmunity<=0){stunTime=2;stunImmunity=5;say('💫 충격파! 2초 기절 · 5초 재기절 방지!')}
       else say('💥 충격파! 기절 면역 중!');
      }}return}
@@ -780,7 +781,7 @@ function updateBoss(b,dt){
   if(b.skillTimer>0)return;
   if(b.skill==='slam'){b.skill='landing';b.skillTimer=.55;b.visualJump=1;return}
   if(b.skill==='slime'){for(const pos of (b.slimeTargets||[]))bossHazards.push({x:pos.x,y:pos.y,time:.5,life:.8,hit:false});b.slimeTargets=[];b.skill=null;return}
-  if(b.skill==='normal'){if(Math.hypot(player.x-b.x,player.y-b.y)<87)hurtPlayer(4);b.skill=null;return}
+  if(b.skill==='normal'){if(Math.hypot(player.x-b.x,player.y-b.y)<87)guardianHurt(4,b.x,b.y);b.skill=null;return}
   if(b.skill==='charge'){
    // Follow the player throughout the windup; lock direction only on launch.
    const aim=Math.hypot(player.x-b.x,player.y-b.y)||1;
@@ -809,6 +810,25 @@ function dashNow(){
  say(moved?'💨 대쉬!':'⛔ 벽 때문에 대쉬할 수 없어요!');
 }
 function update(dt){
+ if(guardianRush){
+  const r=guardianRush,dist=Math.min(r.remaining,r.speed*dt),steps=Math.max(1,Math.ceil(dist/12));let stopped=false;
+  for(let i=0;i<steps;i++){
+   const nx=player.x+r.x*dist/steps,ny=player.y+r.y*dist/steps;
+   if(blocked(nx,ny)){stopped=true;break}
+   player.x=nx;player.y=ny;r.remaining-=dist/steps;
+   if(i%2===0)dashTrail.push({x:player.x,y:player.y,life:.4,max:.4});
+   for(const e of enemies){if(e.hp<=0||r.hit.has(e))continue;
+    if(Math.hypot(e.x-player.x,e.y-player.y)<(e.boss?82:57)){
+     r.hit.add(e);damageEnemy(e,Math.max(1,Math.round((attack+weaponDamage())*(evolvedSkills.has('shieldrush')?1.25:.8))),'normal');
+     e.stunned=Math.max(e.stunned||0,e.boss?.5:1.8);
+    }
+   }
+  }
+  r.elapsed+=dt;playerHop=Math.max(playerHop,Math.abs(Math.sin(r.elapsed*18))*16);
+  dashInvuln=Math.max(dashInvuln,dt+.04);
+  if(stopped||r.remaining<=0){guardianRush=null;skillVisuals.push({kind:'evoBurst',x:player.x,y:player.y,age:0,radius:110})}
+ }
+
  dashCooldown=Math.max(0,dashCooldown-dt);dashInvuln=Math.max(0,dashInvuln-dt);
  for(const d of dashTrail)d.life-=dt;dashTrail=dashTrail.filter(d=>d.life>0);
  const dashBtn=document.getElementById('dashBtn');
@@ -828,6 +848,7 @@ bossFxTick(dt);updatePlayerSkills(dt);if(mapId==='boss2')updateCrystalEffects(dt
  bowCooldown=Math.max(0,bowCooldown-dt);
  for(const a of bowShots){
   a.age+=dt;a.x+=a.vx*dt;a.y+=a.vy*dt;
+   if(guardianBarrierIntercept(ox,oy,a.x,a.y)){a.age=9;continue}
   for(const e of enemies){if(e.hp>0&&Math.hypot(a.x-e.x,a.y-e.y)<(e.boss?53:26)){
    if(e.boss&&!e.boss3&&e.shieldActive){
     const angle=Math.atan2(player.y-e.y,player.x-e.x);
@@ -873,7 +894,8 @@ if(!sharedEnemyGuest&&mapId==='purpleforest')for(const e of enemies){
 }
 for(const orb of darkOrbs){
  const ox=orb.x,oy=orb.y;orb.age+=dt;orb.x+=orb.vx*dt;orb.y+=orb.vy*dt;
- const vx=orb.x-ox,vy=orb.y-oy,den=vx*vx+vy*vy||1;
+ if(guardianBarrierIntercept(ox,oy,orb.x,orb.y)){orb.age=99;continue}
+  const vx=orb.x-ox,vy=orb.y-oy,den=vx*vx+vy*vy||1;
  const t=clamp(((player.x-ox)*vx+(player.y-oy)*vy)/den,0,1);
  if(Math.hypot(ox+vx*t-player.x,oy+vy*t-player.y)<24){orb.age=99;guardianHurt(orb.damage,orb.x,orb.y)}
 }
@@ -1664,12 +1686,10 @@ function castGuardianSkill(k,direction=null){
  if(k==='immortal'){guardianInvincible=evolvedSkills.has(k)?3.5:2;guardianCooldowns[k]=28}
  if(k==='shieldrush'){
   const d=direction&&Math.hypot(direction.x,direction.y)>.1?direction:{...facing},ox=player.x,oy=player.y;
-  for(let n=0;n<(evolvedSkills.has(k)?26:19);n++){const nx=player.x+d.x*10,ny=player.y+d.y*10;if(blocked(nx,ny))break;player.x=nx;player.y=ny}
-  const moved=Math.hypot(player.x-ox,player.y-oy);
-  for(const e of enemies){if(e.hp<=0)continue;const vx=e.x-ox,vy=e.y-oy,along=vx*d.x+vy*d.y,side=Math.abs(vx*d.y-vy*d.x);
-   if(along>=-20&&along<=moved+50&&side<(evolvedSkills.has(k)?85:55)){damageEnemy(e,Math.max(1,Math.round((attack+weaponDamage())*(evolvedSkills.has(k)?.9:.55))),'normal');e.stunned=Math.max(e.stunned||0,1.5);const tx=player.x+d.x*65,ty=player.y+d.y*65;if(!blocked(tx,ty)){e.x=tx;e.y=ty}}
-  }
-  guardianCooldowns[k]=14;skillVisuals.push({kind:'evoBurst',x:player.x,y:player.y,age:0,radius:110});
+  const len=Math.hypot(d.x,d.y)||1;
+  guardianRush={x:d.x/len,y:d.y/len,remaining:evolvedSkills.has(k)?580:440,speed:evolvedSkills.has(k)?900:770,hit:new Set(),elapsed:0};
+  guardianCooldowns[k]=14;dashInvuln=Math.max(dashInvuln,.45);
+  skillVisuals.push({kind:'evoBurst',x:player.x,y:player.y,age:0,radius:110});
  }
  say(SKILL_NAMES[k]+' 발동!');
 }
