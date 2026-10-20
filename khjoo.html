@@ -332,7 +332,7 @@ function castPlayerSkill(kind,direction=null){if(!classCanUse(kind)){say('현재
   if(evolvedSkills.has('smash')){for(const r of [115,175,235])evolvedArea(player.x,player.y,r,damage*.45,'smash',.5)}say('💥 강타! 적을 기절시켰어요!');
  }
 }
-function throwSkill(kind,direction){const raw=direction&&Math.hypot(direction.x,direction.y)>.1?direction:nearestSkillDirection(),n=Math.hypot(raw.x,raw.y)||1;skillVisuals.push({kind:'skillThrown',payload:kind,x:player.x,y:player.y,fromX:player.x,fromY:player.y,vx:raw.x/n*550,vy:raw.y/n*550,age:0})}
+function throwSkill(kind,direction){const raw=direction&&Math.hypot(direction.x,direction.y)>.1?direction:nearestSkillDirection(),n=Math.hypot(raw.x,raw.y)||1;skillVisuals.push({kind:'skillThrown',payload:kind,x:player.x,y:player.y,fromX:player.x,fromY:player.y,vx:raw.x/n*550,vy:raw.y/n*550,range:310*(raw.power??1),age:0})}
 function landThrownSkill(v){const x=v.x,y=v.y,k=v.payload,ev=evolvedSkills.has(k);skillVisuals.push({kind:'evoBurst',x,y,age:0,radius:110});
  if(k==='melody')skillVisuals.push({kind:'melody',evolved:ev,x,y,age:0,healTick:0,damageTick:0});
  if(k==='thorns'){skillVisuals.push({kind:'thorns',evolved:ev,x,y,age:0,damageTick:0});if(ev)for(const e of enemies)if(e.hp>0&&Math.hypot(e.x-x,e.y-y)<155)e.stunned=Math.max(e.stunned||0,2)}
@@ -353,7 +353,7 @@ function castNewSkill(kind,direction=null){if(!classCanUse(kind))return;
   const target=nearestSkillDirection(), d=direction&&Math.hypot(direction.x,direction.y)>.1?direction:(Math.hypot(joy.x,joy.y)>.15?joy:target);
   const mag=Math.hypot(d.x,d.y)||1,ux=d.x/mag,uy=d.y/mag;
   const hit=new Set();let moved=0;
-  for(let i=0;i<13;i++){
+  for(let i=0;i<Math.max(1,Math.round(13*(direction?.power??1)));i++){
    const nx=player.x+ux*13,ny=player.y+uy*13;
    if(blocked(nx,ny))break;
    player.x=nx;player.y=ny;moved++;
@@ -383,7 +383,7 @@ function updatePlayerSkills(dt){
  for(const v of skillVisuals){
   v.age+=dt;
   if(v.kind==='meteor'&&!v.remote&&v.age>=.55&&!v.exploded){v.exploded=true;evolvedArea(v.x,v.y,100,scaledSkillDamage(19),'meteor',.5);fireBurst(v.x,v.y,40,true)}
-  if(v.kind==='skillThrown'){const ox=v.x,oy=v.y;v.x+=v.vx*dt;v.y+=v.vy*dt;if(Math.hypot(v.x-v.fromX,v.y-v.fromY)>=310||blocked(v.x,v.y)||v.x<25||v.y<90||v.x>world.w-25||v.y>world.h-25){if(blocked(v.x,v.y)){v.x=ox;v.y=oy}landThrownSkill(v);v.kind='spentThrown';v.age=99}continue}
+  if(v.kind==='skillThrown'){const ox=v.x,oy=v.y;v.x+=v.vx*dt;v.y+=v.vy*dt;if(Math.hypot(v.x-v.fromX,v.y-v.fromY)>=(v.range||310)||blocked(v.x,v.y)||v.x<25||v.y<90||v.x>world.w-25||v.y>world.h-25){if(blocked(v.x,v.y)){v.x=ox;v.y=oy}landThrownSkill(v);v.kind='spentThrown';v.age=99}continue}
    if(v.kind==='shadow'){
    if(v.remote)continue;
    // Scan at a fixed interval instead of every frame; pursue enemies independently.
@@ -1320,7 +1320,7 @@ if(skillAim){
    const range=key==='shieldrush'?(evolvedSkills.has('shieldrush')?580:440):key==='rain'?420:['poison','trap','melody','thorns'].includes(key)?310:key==='bulwark'?65:169;
    const edgeX=d.x>0?(world.w-24-player.x)/d.x:d.x<0?(24-player.x)/d.x:range;
    const edgeY=d.y>0?(world.h-90-player.y)/d.y:d.y<0?(90-player.y)/d.y:range;
-   let length=Math.max(0,Math.min(range,edgeX,edgeY));
+   let length=Math.max(0,Math.min(range*(d.power??1),edgeX,edgeY));
    if(key==='shieldrush'||key==='lightdash'){const steps=Math.ceil(length/10);for(let j=1;j<=steps;j++){const test=Math.min(length,j*10);if(blocked(player.x+d.x*test,player.y+d.y*test)){length=Math.max(0,test-10);break}}}
    const ex=px+d.x*length,ey=py+d.y*length;
    ctx.strokeStyle='#9deaff';ctx.fillStyle='rgba(69,182,255,.17)';
@@ -1717,7 +1717,7 @@ function castGuardianSkill(k,direction=null){
  if(k==='shieldrush'){
   const d=direction&&Math.hypot(direction.x,direction.y)>.1?direction:{...facing},ox=player.x,oy=player.y;
   const len=Math.hypot(d.x,d.y)||1;
-  guardianRush={x:d.x/len,y:d.y/len,remaining:evolvedSkills.has(k)?580:440,speed:evolvedSkills.has(k)?900:770,hit:new Set(),elapsed:0,endX:ox+d.x/len*(evolvedSkills.has(k)?580:440),endY:oy+d.y/len*(evolvedSkills.has(k)?580:440)};
+  guardianRush={x:d.x/len,y:d.y/len,remaining:(evolvedSkills.has(k)?580:440)*(d.power??1),speed:evolvedSkills.has(k)?900:770,hit:new Set(),elapsed:0,endX:ox+d.x/len*(evolvedSkills.has(k)?580:440)*(d.power??1),endY:oy+d.y/len*(evolvedSkills.has(k)?580:440)*(d.power??1)};
   guardianCooldowns[k]=14;dashInvuln=Math.max(dashInvuln,.45);
   skillVisuals.push({kind:'evoBurst',x:player.x,y:player.y,age:0,radius:110});
  }
@@ -1800,8 +1800,8 @@ let skillAim=null;
 
 function bindDirectionalSkillAim(button,cast){
  button.style.touchAction='none';let pointer=null,blockClick=false;
- button.addEventListener('pointerdown',e=>{if(pointer||e.button>0||button.disabled)return;e.preventDefault();e.stopPropagation();const d=nearestSkillDirection();pointer={id:e.pointerId,x:e.clientX,y:e.clientY,dir:d};skillAim={id:e.pointerId,kind:'mobility',button,dir:d};try{button.setPointerCapture(e.pointerId)}catch(_){}});
- button.addEventListener('pointermove',e=>{if(!pointer||pointer.id!==e.pointerId)return;e.preventDefault();const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y,n=Math.hypot(dx,dy);if(n>10){pointer.dir={x:dx/n,y:dy/n};if(skillAim&&skillAim.button===button)skillAim.dir=pointer.dir}});
+ button.addEventListener('pointerdown',e=>{if(pointer||e.button>0||button.disabled)return;e.preventDefault();e.stopPropagation();const d=nearestSkillDirection();pointer={id:e.pointerId,x:e.clientX,y:e.clientY,dir:{...d,power:1}};skillAim={id:e.pointerId,kind:'mobility',button,dir:pointer.dir};try{button.setPointerCapture(e.pointerId)}catch(_){}});
+ button.addEventListener('pointermove',e=>{if(!pointer||pointer.id!==e.pointerId)return;e.preventDefault();const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y,n=Math.hypot(dx,dy);if(n>10){pointer.dir={x:dx/n,y:dy/n,power:Math.max(.12,Math.min(1,n/115))};if(skillAim&&skillAim.button===button)skillAim.dir=pointer.dir}});
  const end=e=>{if(!pointer||pointer.id!==e.pointerId)return;const d=pointer.dir;pointer=null;if(skillAim&&skillAim.button===button)skillAim=null;if(e.type==='pointerup'){blockClick=true;cast(d)}};
  button.addEventListener('pointerup',end);button.addEventListener('pointercancel',end);button.addEventListener('lostpointercapture',end);
  button.addEventListener('click',e=>{if(blockClick){e.preventDefault();e.stopImmediatePropagation();blockClick=false}},true);
