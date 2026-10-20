@@ -32,6 +32,13 @@
 #extraPanel{box-sizing:border-box;top:calc(50% + 18px);max-height:calc(100dvh - 80px);overflow-y:auto;padding-top:56px;overscroll-behavior:contain}
 #extraClose{position:sticky;top:0;float:right;z-index:2;margin:-40px 0 8px 8px!important;min-height:42px;padding:9px 16px;background:#f4cf74;color:#263b4a;border:2px solid #fff3c6;box-shadow:0 2px 8px #0005}
 @media(max-height:650px){#extraPanel{top:calc(50% + 10px);max-height:calc(100dvh - 45px)}}
+
+/* 원형 스킬 버튼 및 모바일 조작 위치 */
+#activeSkills{position:fixed;right:118px;bottom:calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:row;align-items:center;justify-content:flex-end;gap:7px;z-index:35;max-width:calc(100vw - 148px);pointer-events:none}
+#activeSkills button{box-sizing:border-box;flex:0 0 auto;width:clamp(45px,12vw,59px);height:clamp(45px,12vw,59px);min-width:0;min-height:0;padding:4px 2px;border-radius:50%;background:#334c79ed;color:#fff;border:2px solid #a5d9ff;box-shadow:0 3px 9px #12263a88;font-size:clamp(9px,2.6vw,11px);font-weight:800;line-height:1.12;white-space:normal;overflow-wrap:anywhere;text-align:center;touch-action:manipulation;pointer-events:auto}
+#activeSkills button:disabled{opacity:.58;background:#343b4c}
+@media(max-width:420px){#activeSkills{right:112px;bottom:calc(130px + env(safe-area-inset-bottom,0px));gap:5px}#activeSkills button{width:clamp(43px,11.7vw,52px);height:clamp(43px,11.7vw,52px);font-size:10px}}
+@media(max-height:560px){#activeSkills{bottom:calc(112px + env(safe-area-inset-bottom,0px))}}
 </style><style>
 </style></head><body>
 <style id="startupClassStyle">#startupClassGate{position:fixed;inset:0;z-index:10002;background:rgba(8,20,36,.96);display:none;align-items:center;justify-content:center;padding:18px;color:white;font-family:system-ui,sans-serif}#startupClassBox{width:min(460px,100%);background:#173449;border:2px solid #71bbd3;border-radius:18px;padding:24px;text-align:center;box-shadow:0 12px 45px #0008}#startupClassBox button{width:100%;padding:16px;margin:9px 0;border:2px solid #9ed6ee;border-radius:12px;background:#234c65;color:white;font-size:18px;font-weight:bold}#startupClassBox button:active{background:#39758c}</style><div id="startupClassGate"><div id="startupClassBox"><h2>⚔️ 직업을 선택하세요</h2><p>모험을 시작하기 전에 직업을 선택해 주세요.<br>일반 계정은 선택한 직업을 변경할 수 없어요.</p><button id="startupWarrior">⚔️ 검사<br><small>검기 · 강타 · 광폭화 · 번개 질주</small></button><button id="startupMage">🪄 마법사<br><small>파이어볼 · 치유의 선율 · 그림자 분신 · 가시 덩굴</small></button><button id="startupArcher">🗡️ 도적<br><small>연속 베기 · 맹독 단검 · 연막탄 · 암살 돌진</small></button><button id="startupGuardian">🛡️ 방어병<br><small>철벽 태세 · 수호의 방벽 · 불굴의 요새 · 방패 돌격</small></button></div></div>
