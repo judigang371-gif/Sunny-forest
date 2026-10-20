@@ -917,10 +917,17 @@ for(const orb of darkOrbs){
 }
 darkOrbs=darkOrbs.filter(orb=>orb.age<5&&orb.x>0&&orb.x<world.w&&orb.y>75&&orb.y<world.h);
 updateDragonFireballs(dt);updateIndigoEffects(dt);
-if(!sharedEnemyGuest)for(const e of enemies){if(!e.boss){e.hitAnim=Math.max(0,(e.hitAnim||0)-dt);e.attackAnim=Math.max(0,(e.attackAnim||0)-dt)}e.thornSlow=Math.max(0,(e.thornSlow||0)-dt);const paralyzed=(e.paralyzeTime||0)>0;e.paralyzeTime=Math.max(0,(e.paralyzeTime||0)-dt);if(e.stunned>0){e.stunned=Math.max(0,e.stunned-dt);continue}if(e.boss){updateBoss(e,dt*(paralyzed?.5:1));continue}if(!['forest','blueforest','purpleforest','boss1'].includes(mapId)&&!e.dragonMinion){e.moveAmount=0;continue;}let target=player, targetIsLocal=true, bestDist=(player.x-e.x)**2+(player.y-e.y)**2;
+if(!sharedEnemyGuest)for(const e of enemies){if(!e.boss){e.hitAnim=Math.max(0,(e.hitAnim||0)-dt);e.attackAnim=Math.max(0,(e.attackAnim||0)-dt)}e.thornSlow=Math.max(0,(e.thornSlow||0)-dt);const paralyzed=(e.paralyzeTime||0)>0;e.paralyzeTime=Math.max(0,(e.paralyzeTime||0)-dt);if(e.stunned>0){e.stunned=Math.max(0,e.stunned-dt);continue}if(e.boss){updateBoss(e,dt*(paralyzed?.5:1));continue}if(!['forest','blueforest','purpleforest','boss1','dungeon'].includes(mapId)&&!e.dragonMinion){e.moveAmount=0;continue;}let target=player, targetIsLocal=true, bestDist=(player.x-e.x)**2+(player.y-e.y)**2;
 const teammates=window.sunnyCoopPeerPositions||[];
 for(const peer of teammates){const dx=peer.x-e.x,dy=peer.y-e.y,distSq=dx*dx+dy*dy;if(distSq<bestDist){bestDist=distSq;target=peer;targetIsLocal=false}}
-let x=target.x-e.x,y=target.y-e.y,d=Math.sqrt(bestDist);if(d>25){e.moveAmount=Math.min(1,(e.moveAmount||0)+dt*7);e.x+=x/(d||1)*e.speed*dt*(e.thornSlow>0?.7:1)*(paralyzed?.5:1);e.y+=y/(d||1)*e.speed*dt*(e.thornSlow>0?.7:1)*(paralyzed?.5:1)}else{e.moveAmount=Math.max(0,(e.moveAmount||0)-dt*7)}if(d<=25){e.cool-=dt*(paralyzed?.5:1);if(e.cool<=0){monsterAttackPose(e);e.cool=e.boss?1.35:1;if(targetIsLocal){if(!guardianBlocks(e.x,e.y)){hp=Math.max(0,hp-reducedDamage(e.damage));}timeSinceHit=0;regenClock=0;trailWait=.65;}else if(target.id){window.sunnyCoopMonsterAttack?.(target.id,e.damage)}if(hp<=0){hp=maxPlayerHp();displayedHp=maxPlayerHp();hpTrail=maxPlayerHp();switchMap('village');gold=Math.max(0,gold-5);say('쓰러졌어요! 마을에서 다시 시작합니다. 골드 5개를 잃었어요.')}}}}
+let x=target.x-e.x,y=target.y-e.y,d=Math.sqrt(bestDist);if(d>25){e.moveAmount=Math.min(1,(e.moveAmount||0)+dt*7);const factor=e.speed*dt*(e.thornSlow>0?.7:1)*(paralyzed?.5:1),dx=x/(d||1)*factor,dy=y/(d||1)*factor;
+if(mapId==='dungeon'){
+ const nx=e.x+dx,ny=e.y+dy;
+ if(!blocked(nx,ny)){e.x=nx;e.y=ny}
+ else if(!blocked(nx,e.y)){e.x=nx}
+ else if(!blocked(e.x,ny)){e.y=ny}
+ else {const sign=(e.dungeonSide||1);if(!blocked(e.x-sign*dy,e.y+sign*dx)){e.x-=sign*dy;e.y+=sign*dx}else e.dungeonSide=-sign}
+}else{e.x+=dx;e.y+=dy}}else{e.moveAmount=Math.max(0,(e.moveAmount||0)-dt*7)}if(d<=25){e.cool-=dt*(paralyzed?.5:1);if(e.cool<=0){monsterAttackPose(e);e.cool=e.boss?1.35:1;if(targetIsLocal){if(!guardianBlocks(e.x,e.y)){hp=Math.max(0,hp-reducedDamage(e.damage));}timeSinceHit=0;regenClock=0;trailWait=.65;}else if(target.id){window.sunnyCoopMonsterAttack?.(target.id,e.damage)}if(hp<=0){hp=maxPlayerHp();displayedHp=maxPlayerHp();hpTrail=maxPlayerHp();switchMap('village');gold=Math.max(0,gold-5);say('쓰러졌어요! 마을에서 다시 시작합니다. 골드 5개를 잃었어요.')}}}}
 if(!sharedEnemyGuest)for(const e of enemies){if(e.burnTime>0&&e.hp>0){const step=Math.min(dt,e.burnTime);e.burnTime-=step;if(e.burnTime<=0)e.burnStacks=0;e.burnTick=(e.burnTick||0)+step;while(e.burnTick>=1){e.burnTick-=1;damageEnemy(e,e.burnDamage||4,'burn');}}}
 for(const e of enemies){if(e.trailHp>e.hp){e.trailDelay-=dt;if(e.trailDelay<=0)e.trailHp=Math.max(e.hp,e.trailHp-27*dt)}else if(e.trailHp<e.hp)e.trailHp=Math.min(e.hp,e.trailHp+55*dt)}
 if(!sharedEnemyGuest)for(let i=enemies.length-1;i>=0;i--)if(enemies[i].hp<=0){let e=enemies[i];if(!e.boss)monsterDeathFx.push({x:e.x,y:e.y,kind:e.kind,goblin:mapId==='blueforest',wraith:mapId==='purpleforest'||e.dragonMinion,life:.65,max:.65});drops.push({x:e.x,y:e.y,kind:'xp',amount:e.xp});if(e.boss){if(!e.boss3){const guaranteedGrade=e.boss2?5:4;drops.push({x:e.x+34,y:e.y-18,kind:'wood',amount:1,grade:makeGrade(guaranteedGrade)});say(e.boss2?'💗 신성 등급 '+weaponLabel('wood')+'이 떨어졌어요!':'🌟 전설 등급 '+weaponLabel('wood')+'이 떨어졌어요!')}bossClears++;if(e.boss3){boss3Won=true;crystalPrison=null;crystalEffects=[];dragonFireballs=[];dragonFireZones=[]}else if(e.boss2){boss2Won=true;crystalPrison=null;crystalEffects=[]}else bossFightWon=true;gold+=e.boss3?230:e.boss2?150:75;xp+=e.xp;while(xp>=30*level){xp-=30*level;level++;sp++;hp=Math.min(maxPlayerHp(),hp+5);if(level%2===0)skillPoints++}hp=Math.min(maxPlayerHp(),hp+12);say(e.boss3?'🏆 심연의 드래곤 처치! 230골드 획득!':e.boss2?'🏆 수정 골렘 처치! 150골드 획득!':'🏆 숲의 수호자 처치! 75골드 획득!');}if(Math.random()<.7)drops.push({x:e.x+8,y:e.y-12,kind:'jade',amount:1});if(!e.boss&&Math.random()<.20){const loot=makeArmorLoot();drops.push({x:e.x-18,y:e.y-17,kind:'armor',armor:loot,amount:1})}if(!e.boss&&Math.random()<.45)drops.push({x:e.x+12,y:e.y+4,kind:'gold',amount:2+(Math.random()*6|0)});if(!e.boss&&Math.random()<.40)drops.push({x:e.x-12,y:e.y+4,kind:'wood',amount:1});if(!e.boss&&mapId==='blueforest'&&Math.random()<.40)drops.push({x:e.x+14,y:e.y+4,kind:'stone',amount:1});if(!e.boss&&mapId==='forest'&&Math.random()<.13)drops.push({x:e.x+15,y:e.y-7,kind:'tin',amount:1});enemies.splice(i,1);if(e.boss){bossHazards=[];bossProjectiles=[];say('🏆 보스 격파! 아래쪽 출구가 열렸어요!')}}
@@ -1895,14 +1902,17 @@ function dungeonStart(){
  dungeonRun={returnX,returnY,score:0,count:5+Math.floor(Math.random()*6),cleared:false};
  switchMap('dungeon');player.x=75;player.y=145;enemies=[];
  for(let i=0;i<dungeonRun.count;i++){
-  const k=Math.floor(Math.random()*4),scale=.75+Math.random()*2.4;
+  const k=i<5?i%5:Math.floor(Math.random()*5),scale=.75+Math.random()*2.4;
   const baseHp=Math.round((14+level*2+k*5)*scale),dmg=Math.max(2,Math.round((4+level*.5+k)*(.7+Math.random()*1.6))),speed=Math.round(26+Math.random()*55);
   let x=250,y=250;
   for(let tries=0;tries<100;tries++){
    x=150+Math.random()*(w-260);y=145+Math.random()*(h-230);
    if(Math.hypot(x-player.x,y-player.y)>180&&!dungeonWalls.some(b=>x>b.x-42&&x<b.x+b.w+42&&y>b.y-42&&y<b.y+b.h+42))break;
   }
-  enemies.push({x,y,kind:k,hp:baseHp,max:baseHp,displayHp:baseHp,trailHp:baseHp,trailDelay:0,speed,damage:dmg,xp:Math.round(6+scale*7),cool:Math.random(),orbCooldown:20,orbCastAnim:0,hopPhase:Math.random()*6.283,moveAmount:0});
+  const types=['돌격 슬라임','민첩 슬라임','갑옷 슬라임','독 슬라임','거대 슬라임'];
+  const hpFactor=[1,.75,1.8,1.1,2.4][k],speedFactor=[1.15,1.8,.65,1.05,.55][k],damageFactor=[1,.7,1.2,1.15,1.65][k];
+  const mh=Math.round(baseHp*hpFactor);
+  enemies.push({x,y,kind:k%4,dungeonType:k,dungeonName:types[k],hp:mh,max:mh,displayHp:mh,trailHp:mh,trailDelay:0,speed:Math.round(speed*speedFactor),damage:Math.round(dmg*damageFactor),xp:Math.round((6+scale*7)*hpFactor),cool:Math.random(),orbCooldown:20,orbCastAnim:0,hopPhase:Math.random()*6.283,moveAmount:0,dungeonSide:Math.random()<.5?1:-1});
   dungeonRun.score+=baseHp*.65+dmg*11+speed*.8;
  }
  document.getElementById('dungeonStatus').textContent='진행 중 · '+dungeonRun.count+'마리';
