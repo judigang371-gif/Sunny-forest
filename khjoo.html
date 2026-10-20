@@ -855,7 +855,7 @@ bossFxTick(dt);updatePlayerSkills(dt);if(mapId==='boss2')updateCrystalEffects(dt
  bowCooldown=Math.max(0,bowCooldown-dt);
  for(const a of bowShots){
   a.age+=dt;a.x+=a.vx*dt;a.y+=a.vy*dt;
-   if(guardianBarrierIntercept(ox,oy,a.x,a.y)){a.age=9;continue}
+   
   for(const e of enemies){if(e.hp>0&&Math.hypot(a.x-e.x,a.y-e.y)<(e.boss?53:26)){
    if(e.boss&&!e.boss3&&e.shieldActive){
     const angle=Math.atan2(player.y-e.y,player.x-e.x);
@@ -876,6 +876,7 @@ bossFxTick(dt);updatePlayerSkills(dt);if(mapId==='boss2')updateCrystalEffects(dt
   a.age+=dt;
   const ox=a.x,oy=a.y;
   a.x+=a.vx*dt;a.y+=a.vy*dt;
+   if(guardianBarrierIntercept(ox,oy,a.x,a.y)){a.age=9;continue}
   // Swept collision: fast arrows cannot pass through the player between frames.
   const vx=a.x-ox,vy=a.y-oy,den=vx*vx+vy*vy||1;
   const t=clamp(((player.x-ox)*vx+(player.y-oy)*vy)/den,0,1);
