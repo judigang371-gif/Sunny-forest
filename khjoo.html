@@ -339,11 +339,11 @@ function castHealingMelody(){if(!classCanUse('melody'))return;
  skillVisuals.push({kind:'melody',evolved:evolvedSkills.has('melody'),x:player.x,y:player.y,age:0,healTick:0,damageTick:0});if(evolvedSkills.has('melody'))evolutionShield=Math.max(evolutionShield,12);shareSkill('melody');
  say('🎵 치유의 선율!');
 }
-function castNewSkill(kind){if(!classCanUse(kind))return;
+function castNewSkill(kind,direction=null){if(!classCanUse(kind))return;
  if(!skillLearned(kind)||!equippedSkills.includes(kind)){say('✨ 스킬 메뉴에서 배우고 장착하세요!');return}
  if(kind==='lightdash'){
   if(lightdashCooldown>0)return;
-  const target=nearestSkillDirection(), d=Math.hypot(joy.x,joy.y)>.15?joy:target;
+  const target=nearestSkillDirection(), d=direction&&Math.hypot(direction.x,direction.y)>.1?direction:(Math.hypot(joy.x,joy.y)>.15?joy:target);
   const mag=Math.hypot(d.x,d.y)||1,ux=d.x/mag,uy=d.y/mag;
   const hit=new Set();let moved=0;
   for(let i=0;i<13;i++){
@@ -445,7 +445,7 @@ function fireBow(direction,chargeSeconds=0){
 }
 function defenseReduction(){return Math.min(90,Math.max(0,totalDefense()))/100}
 function reducedDamage(amount){if(playerClass==='guardian'&&guardianInvincible>0)return 0;return Math.max(0,Math.max(1,amount*(1-defenseReduction()))*(playerClass==='guardian'&&guardianFortify>0?.3:1))}
-function guardianBlocks(x,y){if(playerClass!=='guardian'||guardianWall<=0||!Number.isFinite(x)||!Number.isFinite(y))return false;const dx=x-player.x,dy=y-player.y,along=dx*guardianWallDir.x+dy*guardianWallDir.y,side=Math.abs(dx*guardianWallDir.y-dy*guardianWallDir.x);return along>0&&side<Math.max(90,along*.55)}
+function guardianBlocks(x,y){if(playerClass!=='guardian'||guardianWall<=0||!Number.isFinite(x)||!Number.isFinite(y))return false;const dx=x-player.x,dy=y-player.y,along=dx*guardianWallDir.x+dy*guardianWallDir.y;return along>=-5&&along<=450&&Math.abs(dx*guardianWallDir.y-dy*guardianWallDir.x)<=115}
 function guardianHurt(amount,x,y){if(guardianBlocks(x,y))return;hurtPlayer(amount)}
 function hurtPlayer(amount){if(dashInvuln>0||playerClass==='guardian'&&guardianInvincible>0)return;let actual=reducedDamage(amount);if(evolutionShield>0){const absorbed=Math.min(evolutionShield,actual);evolutionShield-=absorbed;actual-=absorbed}hp=Math.max(0,hp-actual);timeSinceHit=0;regenClock=0;trailWait=.65;if(hp<=0){hp=maxPlayerHp();displayedHp=maxPlayerHp();hpTrail=maxPlayerHp();stunTime=0;slowTime=0;switchMap('village');gold=Math.max(0,gold-5);say('쓰러졌어요! 마을에서 다시 시작합니다. 골드 5개를 잃었어요.')}}
 function slimePositions(cx,cy){
@@ -1235,6 +1235,7 @@ ctx.lineWidth=4;ctx.strokeStyle='#292331';const tx=n.x-camX,ty=n.y-camY;
 ctx.strokeText(n.text,tx,ty);ctx.fillStyle=n.color;ctx.fillText(n.text,tx,ty);ctx.restore()}
 for(const p of fireParticles){ctx.save();ctx.globalAlpha=Math.min(1,p.life/p.max);ctx.fillStyle=p.life>.28?'#ffb03c':'#ff4a24';ctx.fillRect(p.x-camX,p.y-camY,p.size,p.size);ctx.restore()}
 let px=player.x-camX,py=player.y-camY;
+if(playerClass==='guardian'&&guardianWall>0){const a=Math.atan2(guardianWallDir.y,guardianWallDir.x);ctx.save();ctx.translate(px+guardianWallDir.x*65,py+guardianWallDir.y*65-17);ctx.rotate(a);ctx.shadowColor='#3ddcff';ctx.shadowBlur=18;ctx.fillStyle='rgba(53,177,255,.38)';ctx.strokeStyle='#baf5ff';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(0,-110);ctx.quadraticCurveTo(26,-90,26,0);ctx.quadraticCurveTo(26,90,0,110);ctx.quadraticCurveTo(-16,90,-16,0);ctx.quadraticCurveTo(-16,-90,0,-110);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore()}
 if(berserkPulse>0){ctx.save();ctx.globalAlpha=berserkPulse/.65;ctx.strokeStyle='#ffb13b';ctx.lineWidth=5;ctx.beginPath();ctx.arc(px,py-18,25+(1-berserkPulse/.65)*95,0,Math.PI*2);ctx.stroke();ctx.restore()}
 if(berserkTime>0){ctx.save();const pulse=Math.sin(animationTime*10);
 ctx.strokeStyle='rgba(255,68,24,.85)';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(px,py-18,23+pulse*3,33+pulse*4,0,0,Math.PI*2);ctx.stroke();
@@ -1276,7 +1277,7 @@ ctx.restore();ctx.restore();ctx.fillStyle='#273b49';ctx.fillRect(px-26,py-55,52,
 if(skillAim){
  const d=skillAim.dir,a=Math.atan2(d.y,d.x),px=player.x-camX,py=player.y-camY;
  ctx.save();ctx.lineWidth=3;ctx.strokeStyle='rgba(255,255,255,.95)';ctx.fillStyle='rgba(255,255,255,.15)';
- if(skillAim.kind==='wave'){
+ if(skillAim.kind==='mobility'){ctx.setLineDash([8,6]);ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px+d.x*205,py+d.y*205);ctx.stroke();ctx.setLineDash([]);ctx.beginPath();ctx.arc(px+d.x*205,py+d.y*205,12,0,Math.PI*2);ctx.stroke()}else if(skillAim.kind==='wave'){
   // Wave is 70px wide and moves in a straight line.
   const length=510,half=35,nx=-d.y,ny=d.x;
   ctx.beginPath();ctx.moveTo(px+nx*half,py+ny*half);
@@ -1656,13 +1657,13 @@ const guardianButtons=document.createElement('div');guardianButtons.style.cssTex
 for(const k of GUARDIAN_SKILLS){const b=document.createElement('button');b.type='button';b.dataset.guardianCast=k;b.style.cssText='padding:8px;border-radius:9px;background:#426175;color:#fff;border:2px solid #b8e8ff;font-size:12px';b.onclick=()=>castGuardianSkill(k);guardianButtons.appendChild(b)}
 document.body.appendChild(guardianButtons);
 document.querySelectorAll('[data-guardian-learn]').forEach(b=>b.onclick=()=>{const k=b.dataset.guardianLearn;if(playerClass!=='guardian'||guardianLearned[k]||skillPoints<1)return say('방어병과 스킬 포인트 1개가 필요해요');skillPoints--;guardianLearned[k]=true;if(equippedSkills.length<3)equippedSkills.push(k);refreshPlayerSkills();saveGame();say(SKILL_NAMES[k]+' 습득!')});
-function castGuardianSkill(k){
+function castGuardianSkill(k,direction=null){
  if(!classCanUse(k)||!guardianLearned[k]||!equippedSkills.includes(k)||guardianCooldowns[k]>0)return;
  if(k==='fortify'){guardianFortify=evolvedSkills.has(k)?5:3;guardianCooldowns[k]=16}
- if(k==='bulwark'){guardianWall=evolvedSkills.has(k)?7:4;guardianWallDir={...facing};guardianCooldowns[k]=20}
+ if(k==='bulwark'){guardianWall=evolvedSkills.has(k)?7:4;guardianWallDir=direction&&Math.hypot(direction.x,direction.y)>.1?direction:{...facing};guardianCooldowns[k]=20}
  if(k==='immortal'){guardianInvincible=evolvedSkills.has(k)?3.5:2;guardianCooldowns[k]=28}
  if(k==='shieldrush'){
-  const d={...facing},ox=player.x,oy=player.y;
+  const d=direction&&Math.hypot(direction.x,direction.y)>.1?direction:{...facing},ox=player.x,oy=player.y;
   for(let n=0;n<(evolvedSkills.has(k)?26:19);n++){const nx=player.x+d.x*10,ny=player.y+d.y*10;if(blocked(nx,ny))break;player.x=nx;player.y=ny}
   const moved=Math.hypot(player.x-ox,player.y-oy);
   for(const e of enemies){if(e.hp<=0)continue;const vx=e.x-ox,vy=e.y-oy,along=vx*d.x+vy*d.y,side=Math.abs(vx*d.y-vy*d.x);
@@ -1702,9 +1703,9 @@ document.querySelectorAll('[data-archer-learn]').forEach(b=>b.onclick=()=>{
  const k=b.dataset.archerLearn;if(playerClass!=='rogue'||archerLearned[k]||skillPoints<1){say('도적 직업과 스킬 포인트 1개가 필요해요');return}
  skillPoints--;archerLearned[k]=true;if(equippedSkills.length<3)equippedSkills.push(k);refreshPlayerSkills();saveGame();say(SKILL_NAMES[k]+' 습득!');
 });
-function castArcherSkill(k){
+function castArcherSkill(k,direction=null){
  if(!classCanUse(k)||!archerLearned[k]||!equippedSkills.includes(k)||archerCooldowns[k]>0)return;
- const dir=nearestSkillDirection(),damage=scaledSkillDamage(9)+weaponDamage()*.8;
+ const dir=direction&&Math.hypot(direction.x,direction.y)>.1?direction:nearestSkillDirection(),damage=scaledSkillDamage(9)+weaponDamage()*.8;
  const target=enemies.filter(e=>e.hp>0).sort((a,b)=>Math.hypot(a.x-player.x,a.y-player.y)-Math.hypot(b.x-player.x,b.y-player.y))[0];
  if(k==='multishot'){
   const targets=enemies.filter(e=>e.hp>0&&Math.hypot(e.x-player.x,e.y-player.y)<125);
@@ -1750,6 +1751,19 @@ document.getElementById('castMelody').onclick=castHealingMelody;
 document.getElementById('castBerserk').onclick=()=>{if(!classCanUse('berserk'))return;if(!equippedSkills.includes('berserk')){say('광폭화를 장착하세요!');return}if(!learnedBerserk){say('스킬 메뉴에서 광폭화를 습득하세요!');return}if(berserkCooldown>0)return;berserkTime=evolvedSkills.has('berserk')?14:10;berserkCooldown=30;if(evolvedSkills.has('berserk'))hp=Math.min(maxPlayerHp(),hp+6);shareSkill('berserk');berserkPulse=.65;fireBurst(player.x,player.y-18,42,true);say('🔥 광폭화! 10초 동안 강화됩니다!')};
 // Skill buttons are independent aiming sticks: drag to aim, release to cast.
 let skillAim=null;
+
+function bindDirectionalSkillAim(button,cast){
+ button.style.touchAction='none';let pointer=null,blockClick=false;
+ button.addEventListener('pointerdown',e=>{if(pointer||e.button>0||button.disabled)return;e.preventDefault();e.stopPropagation();const d=nearestSkillDirection();pointer={id:e.pointerId,x:e.clientX,y:e.clientY,dir:d};skillAim={id:e.pointerId,kind:'mobility',button,dir:d};try{button.setPointerCapture(e.pointerId)}catch(_){}});
+ button.addEventListener('pointermove',e=>{if(!pointer||pointer.id!==e.pointerId)return;e.preventDefault();const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y,n=Math.hypot(dx,dy);if(n>10){pointer.dir={x:dx/n,y:dy/n};if(skillAim&&skillAim.button===button)skillAim.dir=pointer.dir}});
+ const end=e=>{if(!pointer||pointer.id!==e.pointerId)return;const d=pointer.dir;pointer=null;if(skillAim&&skillAim.button===button)skillAim=null;if(e.type==='pointerup'){blockClick=true;cast(d)}};
+ button.addEventListener('pointerup',end);button.addEventListener('pointercancel',end);button.addEventListener('lostpointercapture',end);
+ button.addEventListener('click',e=>{if(blockClick){e.preventDefault();e.stopImmediatePropagation();blockClick=false}},true);
+}
+bindDirectionalSkillAim(document.getElementById('castLightdash'),d=>castNewSkill('lightdash',d));
+for(const b of guardianButtons.children)if(['shieldrush','bulwark'].includes(b.dataset.guardianCast))bindDirectionalSkillAim(b,d=>castGuardianSkill(b.dataset.guardianCast,d));
+for(const b of archerButtons.children)if(b.dataset.archerCast==='rain')bindDirectionalSkillAim(b,d=>castArcherSkill('rain',d));
+
 function nearestSkillDirection(){
  let target=null,best=Infinity;
  for(const e of enemies){if(e.hp<=0)continue;const d=Math.hypot(e.x-player.x,e.y-player.y);if(d<best){best=d;target=e}}
