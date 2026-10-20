@@ -821,6 +821,7 @@ function update(dt){
     if(Math.hypot(e.x-player.x,e.y-player.y)<(e.boss?82:57)){
      r.hit.add(e);damageEnemy(e,Math.max(1,Math.round((attack+weaponDamage())*(evolvedSkills.has('shieldrush')?1.25:.8))),'normal');
      e.stunned=Math.max(e.stunned||0,e.boss?.5:1.8);
+     if(!e.boss)e.guardianPush={x:r.x,y:r.y,targetX:r.endX,targetY:r.endY,speed:1050};
     }
    }
   }
@@ -829,6 +830,12 @@ function update(dt){
   if(stopped||r.remaining<=0){guardianRush=null;skillVisuals.push({kind:'evoBurst',x:player.x,y:player.y,age:0,radius:110})}
  }
 
+ for(const e of enemies){const p=e.guardianPush;if(!p)continue;
+  const remaining=Math.max(0,(p.targetX-e.x)*p.x+(p.targetY-e.y)*p.y),move=Math.min(remaining,p.speed*dt);
+  const count=Math.max(1,Math.ceil(move/10));let stopped=false;
+  for(let j=0;j<count;j++){const nx=e.x+p.x*move/count,ny=e.y+p.y*move/count;if(blocked(nx,ny)){stopped=true;break}e.x=nx;e.y=ny}
+  if(stopped||remaining<=1||move<=0)e.guardianPush=null;
+ }
  dashCooldown=Math.max(0,dashCooldown-dt);dashInvuln=Math.max(0,dashInvuln-dt);
  for(const d of dashTrail)d.life-=dt;dashTrail=dashTrail.filter(d=>d.life>0);
  const dashBtn=document.getElementById('dashBtn');
@@ -1299,7 +1306,19 @@ ctx.restore();ctx.restore();ctx.fillStyle='#273b49';ctx.fillRect(px-26,py-55,52,
 if(skillAim){
  const d=skillAim.dir,a=Math.atan2(d.y,d.x),px=player.x-camX,py=player.y-camY;
  ctx.save();ctx.lineWidth=3;ctx.strokeStyle='rgba(255,255,255,.95)';ctx.fillStyle='rgba(255,255,255,.15)';
- if(skillAim.kind==='mobility'){ctx.setLineDash([8,6]);ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px+d.x*205,py+d.y*205);ctx.stroke();ctx.setLineDash([]);ctx.beginPath();ctx.arc(px+d.x*205,py+d.y*205,12,0,Math.PI*2);ctx.stroke()}else if(skillAim.kind==='wave'){
+ if(skillAim.kind==='mobility'){
+   const key=skillAim.button?.dataset.guardianCast||skillAim.button?.dataset.archerCast||(skillAim.button?.id==='castLightdash'?'lightdash':'');
+   const range=key==='shieldrush'?(evolvedSkills.has('shieldrush')?580:440):key==='rain'?420:key==='bulwark'?65:169;
+   const edgeX=d.x>0?(world.w-24-player.x)/d.x:d.x<0?(24-player.x)/d.x:range;
+   const edgeY=d.y>0?(world.h-90-player.y)/d.y:d.y<0?(90-player.y)/d.y:range;
+   let length=Math.max(0,Math.min(range,edgeX,edgeY));
+   if(key==='shieldrush'||key==='lightdash'){const steps=Math.ceil(length/10);for(let j=1;j<=steps;j++){const test=Math.min(length,j*10);if(blocked(player.x+d.x*test,player.y+d.y*test)){length=Math.max(0,test-10);break}}}
+   const ex=px+d.x*length,ey=py+d.y*length;
+   ctx.strokeStyle='#9deaff';ctx.fillStyle='rgba(69,182,255,.17)';
+   ctx.lineWidth=3;ctx.setLineDash([9,6]);ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(ex,ey);ctx.stroke();ctx.setLineDash([]);
+   ctx.beginPath();ctx.arc(ex,ey,key==='shieldrush'?32:15,0,Math.PI*2);ctx.fill();ctx.stroke();
+   ctx.fillStyle='#e6fbff';ctx.font='bold 13px system-ui';ctx.textAlign='center';ctx.fillText(Math.round(length)+' / '+range,ex,ey-23);
+  }else if(skillAim.kind==='wave'){
   // Wave is 70px wide and moves in a straight line.
   const length=510,half=35,nx=-d.y,ny=d.x;
   ctx.beginPath();ctx.moveTo(px+nx*half,py+ny*half);
@@ -1687,7 +1706,7 @@ function castGuardianSkill(k,direction=null){
  if(k==='shieldrush'){
   const d=direction&&Math.hypot(direction.x,direction.y)>.1?direction:{...facing},ox=player.x,oy=player.y;
   const len=Math.hypot(d.x,d.y)||1;
-  guardianRush={x:d.x/len,y:d.y/len,remaining:evolvedSkills.has(k)?580:440,speed:evolvedSkills.has(k)?900:770,hit:new Set(),elapsed:0};
+  guardianRush={x:d.x/len,y:d.y/len,remaining:evolvedSkills.has(k)?580:440,speed:evolvedSkills.has(k)?900:770,hit:new Set(),elapsed:0,endX:ox+d.x/len*(evolvedSkills.has(k)?580:440),endY:oy+d.y/len*(evolvedSkills.has(k)?580:440)};
   guardianCooldowns[k]=14;dashInvuln=Math.max(dashInvuln,.45);
   skillVisuals.push({kind:'evoBurst',x:player.x,y:player.y,age:0,radius:110});
  }
