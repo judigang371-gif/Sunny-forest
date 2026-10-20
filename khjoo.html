@@ -1545,6 +1545,7 @@ function swordAttackSpeed(){return equippedGradeStats().speed}
 loadGame();syncEquipped();displayedHp=hp;hpTrail=hp;
 function syncEquipped(){for(const t of TIERS){const count=swordList(t).length;while(swordGrades[t].length<count)swordGrades[t].push(makeGrade(0));swordGrades[t].length=count;while(stars[t].length<count)stars[t].push(0);stars[t].length=count;}if(!woodSwords.length&&!TIERS.some(t=>swordList(t).length))woodSwords=[0];if(!swordList(weaponType)?.length)weaponType=TIERS.find(t=>swordList(t).length)||'wood';selectedSword=clamp(selectedSword,0,Math.max(0,swordList(weaponType).length-1));weaponLevel=equippedLevel();woodCount=woodSwords.filter(n=>n===0).length;plusFiveCount=woodSwords.filter(n=>n===5).length;stoneCount=stoneSwords.length}
 function nearSmith(){return mapId==='forge'&&Math.hypot(player.x-310,player.y-245)<105}
+function smithActionAllowed(){if(mapId==='forge')return true;say('⚒️ 강화는 햇살 마을 대장간 안에서만 가능해요!');return false}
 function nearShop(){const b=townBuildings.find(b=>b.type==='shop');return mapId==='village'&&Math.hypot(player.x-b.x-b.w/2,player.y-b.y-b.h-18)<85}
 function nearForgeDoor(){const b=townBuildings.find(b=>b.type==='forge');return mapId==='village'&&Math.hypot(player.x-(b.x+b.w/2),player.y-(b.y+b.h+18))<75}
 function interact(){if(nearShop()){panel('shop',true);return}if(nearAltar()){switchMap(mapId==='purpleforest'?'boss3':mapId==='blueforest'?'boss2':'boss1');return}if(nearForgeDoor()){switchMap('forge');return}if(nearSmith()){panel('smith',true);return}say('대장간 문이나 대장장이에게 가까이 가세요!')}
@@ -1610,7 +1611,7 @@ function armorSmithRefresh(){
 function removeArmorIds(ids){const gone=new Set(ids);armorItems=armorItems.filter(a=>!gone.has(a.id));for(const slot of ARMOR_SLOTS)if(gone.has(equippedArmor[slot]))equippedArmor[slot]=null}
 function armorSmithMessage(msg){document.getElementById('armorSmithNote').textContent=msg;say(msg)}
 document.getElementById('armorEnhance').onclick=()=>{
- if(!nearSmith())return;const a=armorItems.find(x=>x.id===selectedArmorSmith);if(!a)return;
+ if(!smithActionAllowed())return;const a=armorItems.find(x=>x.id===selectedArmorSmith);if(!a)return;
  const n=a.level||0,need=n+1,cost=need*5;
  if(n>=5){armorSmithMessage('방어구는 +5까지 강화할 수 있어요.');return}
  const mats=armorItems.filter(x=>selectedArmorMaterials.includes(x.id));
@@ -1619,7 +1620,7 @@ document.getElementById('armorEnhance').onclick=()=>{
  gold-=cost;removeArmorIds(mats.map(x=>x.id));a.level=n+1;selectedArmorMaterials=[];armorSmithMessage('🛡️ '+armorName(a)+' +'+a.level+' 강화 성공!');smithRefresh();saveGame()
 };
 document.getElementById('armorCombine').onclick=()=>{
- if(!nearSmith())return;const a=armorItems.find(x=>x.id===selectedArmorSmith);if(!a)return;
+ if(!smithActionAllowed())return;const a=armorItems.find(x=>x.id===selectedArmorSmith);if(!a)return;
  const next=ARMOR_TYPES[ARMOR_TYPES.indexOf(a.type)+1];if(!next){armorSmithMessage('다이아 방어구는 최고 재질이에요.');return}
  const same=armorItems.filter(x=>x.type===a.type&&x.slot===a.slot&&x.grade===a.grade&&(x.level||0)===5);
  if(same.length<3){armorSmithMessage('같은 재질·부위·등급의 +5 방어구 3개가 필요해요. ('+same.length+'/3)');return}
@@ -1630,7 +1631,7 @@ document.getElementById('armorCombine').onclick=()=>{
  armorSmithMessage('🔨 ['+GRADE_NAMES[result.grade]+'] '+armorName(result)+' 합성 성공!');smithRefresh();saveGame()
 };
 document.getElementById('armorStar').onclick=()=>{
- if(!nearSmith())return;const a=armorItems.find(x=>x.id===selectedArmorSmith);if(!a)return;
+ if(!smithActionAllowed())return;const a=armorItems.find(x=>x.id===selectedArmorSmith);if(!a)return;
  const n=a.stars||0;if(n>=12){armorSmithMessage('이미 ★12성 최대 강화예요.');return}
  if(nebulaOre<1){armorSmithMessage('성운광석 1개가 필요해요.');return}
  nebulaOre--;if(Math.random()*100<starRates[n]){a.stars=n+1;armorSmithMessage('🌟 '+armorName(a)+' ★'+a.stars+' 성공!')}else armorSmithMessage('스타포스 실패! ★'+n+' 유지');smithRefresh();saveGame()
@@ -1644,7 +1645,7 @@ document.getElementById('sellJade').onclick=()=>{if(!nearShop()||jadeCount<1){do
 document.getElementById('buyOre').onclick=()=>{if(!nearShop()||gold<50){document.getElementById('shopNote').textContent='50골드가 필요해요';return}gold-=50;nebulaOre++;shopRefresh();saveGame();document.getElementById('shopNote').textContent='성운광석 구매 완료!'};
 
 document.getElementById('starUpgrade').onclick=()=>{
- if(!nearSmith())return;
+ if(!smithActionAllowed())return;
  const [t,index]=selectedStarTarget.split(':'),i=+index,n=starAt(t,i),note=document.getElementById('smithNote');
  if(n>=12){note.textContent='최대 12성이에요';return}
  if(nebulaOre<1){note.textContent='성운광석이 부족해요';return}
@@ -1661,16 +1662,16 @@ document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>panel(b.datas
 document.getElementById('enhanceTab').onclick=()=>{document.getElementById('enhanceTab').classList.add('active');document.getElementById('combineTab').classList.remove('active');document.getElementById('enhancePane').classList.add('active');document.getElementById('combinePane').classList.remove('active');smithRefresh()};
 document.getElementById('combineTab').onclick=()=>{document.getElementById('combineTab').classList.add('active');document.getElementById('enhanceTab').classList.remove('active');document.getElementById('combinePane').classList.add('active');document.getElementById('enhancePane').classList.remove('active');smithRefresh()};
 document.getElementById('upgradeBow').onclick=()=>{
- if(!nearSmith())return;
+ if(!smithActionAllowed())return;
  const cost=bowUpgradeLevel*2+10;
  if(gold<cost){document.getElementById('smithNote').textContent=`활 강화에는 ${cost}골드가 필요해요.`;return}
  gold-=cost;bowUpgradeLevel++;smithRefresh();saveGame();
  document.getElementById('smithNote').textContent=`🏹 활 +${bowUpgradeLevel} 강화 성공! 기본 화살 공격력 +0.5`;
  say(`🏹 활 +${bowUpgradeLevel} 강화 완료!`);
 };
-document.getElementById('upgrade').onclick=()=>{if(!nearSmith())return;const note=document.getElementById('smithNote'),t=forgeTarget.type,list=swordList(t),idx=forgeTarget.index,n=list?.[idx];if(n===undefined||n>=CAPS[t]){note.textContent='이 무기는 더 이상 강화할 수 없어요.';return}const need=n+1,cost=need*5;
+document.getElementById('upgrade').onclick=()=>{if(!smithActionAllowed())return;const note=document.getElementById('smithNote'),t=forgeTarget.type,list=swordList(t),idx=forgeTarget.index,n=list?.[idx];if(n===undefined||n>=CAPS[t]){note.textContent='이 무기는 더 이상 강화할 수 없어요.';return}const need=n+1,cost=need*5;
  if(selectedMaterials.length!==need||new Set(selectedMaterials).size!==need||selectedMaterials.some(i=>i===idx||list[i]!==0||gradeAt(t,i).grade!==gradeAt(t,idx).grade)){note.textContent=`같은 종류의 +0 무기를 정확히 ${need}개 선택하세요.`;return}if(gold<cost){note.textContent=`골드 ${cost}개가 필요해요.`;return}gold-=cost;list[idx]=n+1;const removed=[...selectedMaterials].sort((a,b)=>b-a);for(const i of removed){list.splice(i,1);stars[t].splice(i,1);swordGrades[t].splice(i,1)}forgeTarget.index=idx-removed.filter(i=>i<idx).length;if(weaponType===t){selectedSword=clamp(selectedSword-removed.filter(i=>i<selectedSword).length,0,Math.max(0,list.length-1))}selectedMaterials=[];selectedCombine=[];syncEquipped();note.textContent=weaponLabel(t)+' +'+(n+1)+' 강화 성공!';smithRefresh();saveGame();say(note.textContent)};
-document.getElementById('craftStone').onclick=()=>{if(!nearSmith())return;const note=document.getElementById('smithNote'),t=forgeCombineType,list=swordList(t),cap=CAPS[t],next=TIERS[TIERS.indexOf(t)+1];if(!next||selectedCombine.length!==3||new Set(selectedCombine).size!==3||selectedCombine.some(i=>list[i]!==cap||gradeAt(t,i).grade!==gradeAt(t,selectedCombine[0]).grade)){note.textContent=weaponLabel(t)+' +'+cap+' 세 자루를 선택하세요.';return}if(t==='iron'&&tinCount<5){note.textContent='주석 5개가 필요해요.';return}if(t==='iron')tinCount-=5;const inheritedGrade={...gradeAt(t,selectedCombine[0])};for(const i of [...selectedCombine].sort((a,b)=>b-a)){list.splice(i,1);stars[t].splice(i,1);swordGrades[t].splice(i,1)}swordList(next).push(0);swordGrades[next].push(inheritedGrade);weaponType=next;selectedSword=swordList(next).length-1;forgeTarget={type:next,index:selectedSword};selectedCombine=[];selectedMaterials=[];syncEquipped();note.textContent=weaponLabel(next)+' 합성 성공! 공격력 '+BASE[next];smithRefresh();say(note.textContent)};
+document.getElementById('craftStone').onclick=()=>{if(!smithActionAllowed())return;const note=document.getElementById('smithNote'),t=forgeCombineType,list=swordList(t),cap=CAPS[t],next=TIERS[TIERS.indexOf(t)+1];if(!next||selectedCombine.length!==3||new Set(selectedCombine).size!==3||selectedCombine.some(i=>list[i]!==cap||gradeAt(t,i).grade!==gradeAt(t,selectedCombine[0]).grade)){note.textContent=weaponLabel(t)+' +'+cap+' 세 자루를 선택하세요.';return}if(t==='iron'&&tinCount<5){note.textContent='주석 5개가 필요해요.';return}if(t==='iron')tinCount-=5;const inheritedGrade={...gradeAt(t,selectedCombine[0])};for(const i of [...selectedCombine].sort((a,b)=>b-a)){list.splice(i,1);stars[t].splice(i,1);swordGrades[t].splice(i,1)}swordList(next).push(0);swordGrades[next].push(inheritedGrade);weaponType=next;selectedSword=swordList(next).length-1;forgeTarget={type:next,index:selectedSword};selectedCombine=[];selectedMaterials=[];syncEquipped();note.textContent=weaponLabel(next)+' 합성 성공! 공격력 '+BASE[next];smithRefresh();say(note.textContent)};
 const isDevClassAccount=()=>window.sunnyDeveloperClassAccess===true;
 function selectPlayerClass(klass){
  if(playerClass&&!isDevClassAccount())return;
