@@ -332,11 +332,18 @@ function castPlayerSkill(kind,direction=null){if(!classCanUse(kind)){say('현재
   if(evolvedSkills.has('smash')){for(const r of [115,175,235])evolvedArea(player.x,player.y,r,damage*.45,'smash',.5)}say('💥 강타! 적을 기절시켰어요!');
  }
 }
-function castHealingMelody(){if(!classCanUse('melody'))return;
+function throwSkill(kind,direction){const raw=direction&&Math.hypot(direction.x,direction.y)>.1?direction:nearestSkillDirection(),n=Math.hypot(raw.x,raw.y)||1;skillVisuals.push({kind:'skillThrown',payload:kind,x:player.x,y:player.y,fromX:player.x,fromY:player.y,vx:raw.x/n*550,vy:raw.y/n*550,age:0})}
+function landThrownSkill(v){const x=v.x,y=v.y,k=v.payload,ev=evolvedSkills.has(k);skillVisuals.push({kind:'evoBurst',x,y,age:0,radius:110});
+ if(k==='melody')skillVisuals.push({kind:'melody',evolved:ev,x,y,age:0,healTick:0,damageTick:0});
+ if(k==='thorns'){skillVisuals.push({kind:'thorns',evolved:ev,x,y,age:0,damageTick:0});if(ev)for(const e of enemies)if(e.hp>0&&Math.hypot(e.x-x,e.y-y)<155)e.stunned=Math.max(e.stunned||0,2)}
+ if(k==='trap'){for(const e of enemies)if(e.hp>0&&Math.hypot(e.x-x,e.y-y)<(ev?210:145)){damageEnemy(e,scaledSkillDamage(9)+weaponDamage()*.8,'normal');e.stunned=Math.max(e.stunned||0,e.boss?.6:2.5)}skillVisuals.push({kind:'smokeCloud',x,y,age:0})}
+ if(k==='poison'){for(const e of enemies)if(e.hp>0&&Math.hypot(e.x-x,e.y-y)<(ev?100:65)){damageEnemy(e,scaledSkillDamage(9)+weaponDamage()*.8,'normal');e.archerPoison=Math.max(e.archerPoison||0,ev?8:5);e.archerPoisonClock=0}skillVisuals.push({kind:'poisonCloud',x,y,age:0})}
+}
+function castHealingMelody(direction=null){if(!classCanUse('melody'))return;
  if(!learnedMelody||!equippedSkills.includes('melody')){say('🎵 스킬 메뉴에서 치유의 선율을 배우고 장착하세요!');return}
  if(melodyCooldown>0)return;
  melodyCooldown=15;
- skillVisuals.push({kind:'melody',evolved:evolvedSkills.has('melody'),x:player.x,y:player.y,age:0,healTick:0,damageTick:0});if(evolvedSkills.has('melody'))evolutionShield=Math.max(evolutionShield,12);shareSkill('melody');
+ throwSkill('melody',direction);shareSkill('melody');
  say('🎵 치유의 선율!');
 }
 function castNewSkill(kind,direction=null){if(!classCanUse(kind))return;
@@ -359,7 +366,7 @@ function castNewSkill(kind,direction=null){if(!classCanUse(kind))return;
   shadowCooldown=22;shareSkill('shadow');for(let i=0;i<(evolvedSkills.has('shadow')?3:1);i++)skillVisuals.push({kind:'shadow',evolved:evolvedSkills.has('shadow'),x:player.x-30+i*30,y:player.y+15+i*14,age:0,attackTick:i*.15,skillTick:i*.35,scanTick:0,target:null,dirX:1});say('👤 그림자 분신!');
  }else if(kind==='thorns'){
   if(thornsCooldown>0)return;
-  thornsCooldown=14;shareSkill('thorns');skillVisuals.push({kind:'thorns',evolved:evolvedSkills.has('thorns'),x:player.x,y:player.y,age:0,damageTick:0});if(evolvedSkills.has('thorns')){for(const e of enemies)if(Math.hypot(e.x-player.x,e.y-player.y)<155)e.stunned=Math.max(e.stunned||0,2)}say('🌿 가시 덩굴!');
+  thornsCooldown=14;shareSkill('thorns');throwSkill('thorns',direction);say('🌿 가시 덩굴!');
  }
 }
 // Share local spell visuals with teammates.
@@ -376,7 +383,8 @@ function updatePlayerSkills(dt){
  for(const v of skillVisuals){
   v.age+=dt;
   if(v.kind==='meteor'&&!v.remote&&v.age>=.55&&!v.exploded){v.exploded=true;evolvedArea(v.x,v.y,100,scaledSkillDamage(19),'meteor',.5);fireBurst(v.x,v.y,40,true)}
-  if(v.kind==='shadow'){
+  if(v.kind==='skillThrown'){const ox=v.x,oy=v.y;v.x+=v.vx*dt;v.y+=v.vy*dt;if(Math.hypot(v.x-v.fromX,v.y-v.fromY)>=310||blocked(v.x,v.y)||v.x<25||v.y<90||v.x>world.w-25||v.y>world.h-25){if(blocked(v.x,v.y)){v.x=ox;v.y=oy}landThrownSkill(v);v.kind='spentThrown';v.age=99}continue}
+   if(v.kind==='shadow'){
    if(v.remote)continue;
    // Scan at a fixed interval instead of every frame; pursue enemies independently.
    v.scanTick-=dt;
@@ -424,7 +432,7 @@ function updatePlayerSkills(dt){
    }
   }
  }
- skillVisuals=skillVisuals.filter(v=>v.age<(v.kind==='melody'||v.kind==='thorns'?5:v.kind==='shadow'?6:v.kind==='cloneBolt'?.22:v.kind==='wave'?1.25:v.kind==='fireball'?1.5:v.kind==='fireballBlast'?.38:v.kind==='coopFlash'?.35:v.kind==='meteor'?.85:v.kind==='evoBurst'?.45:.38)&&v.x>0&&v.y>0&&v.x<world.w&&v.y<world.h);
+ skillVisuals=skillVisuals.filter(v=>v.age<(v.kind==='melody'||v.kind==='thorns'?5:v.kind==='shadow'?6:v.kind==='cloneBolt'?.22:v.kind==='wave'?1.25:v.kind==='fireball'?1.5:v.kind==='fireballBlast'?.38:v.kind==='coopFlash'?.35:v.kind==='meteor'?.85:v.kind==='evoBurst'?.45:v.kind==='smokeCloud'?3:v.kind==='poisonCloud'?2:v.kind==='skillThrown'?2:.38)&&v.x>0&&v.y>0&&v.x<world.w&&v.y<world.h);
  if((skillButtonRefreshTimer=(skillButtonRefreshTimer||0)+dt)<.12)return;skillButtonRefreshTimer=0;
  for(const [k,cd] of [['lightdash',lightdashCooldown],['shadow',shadowCooldown],['thorns',thornsCooldown]]){const btn=document.getElementById('cast'+k[0].toUpperCase()+k.slice(1));btn.style.display=equippedSkills.includes(k)?'':'none';btn.disabled=!skillLearned(k)||cd>0;btn.textContent=cd>0?SKILL_NAMES[k]+' '+cd.toFixed(1)+'초':SKILL_NAMES[k]}
  const melodyBtn=document.getElementById('castMelody');melodyBtn.style.display=equippedSkills.includes('melody')?'':'none';melodyBtn.disabled=!learnedMelody||melodyCooldown>0;melodyBtn.textContent=melodyCooldown>0?'🎵 '+melodyCooldown.toFixed(1)+'초':'🎵 치유의 선율';const w=document.getElementById('castWave'),m=document.getElementById('castSmash'),b=document.getElementById('castBerserk'),f=document.getElementById('castFireball');f.style.display=equippedSkills.includes('fireball')?'':'none';f.disabled=!learnedFireball||fireballCooldown>0;f.textContent=learnedFireball?(fireballCooldown>0?'🔥 '+fireballCooldown.toFixed(1)+'초':'🔥 파이어볼'):'🔒 파이어볼';b.style.display=equippedSkills.includes('berserk')?'':'none';w.style.display=equippedSkills.includes('wave')?'':'none';m.style.display=equippedSkills.includes('smash')?'':'none';b.disabled=!learnedBerserk||berserkCooldown>0;b.textContent=berserkTime>0?'🔥 광폭화 '+berserkTime.toFixed(1)+'초':berserkCooldown>0?'🔥 '+berserkCooldown.toFixed(1)+'초':learnedBerserk?'🔥 광폭화':'🔒 광폭화';
@@ -1308,8 +1316,8 @@ if(skillAim){
  const d=skillAim.dir,a=Math.atan2(d.y,d.x),px=player.x-camX,py=player.y-camY;
  ctx.save();ctx.lineWidth=3;ctx.strokeStyle='rgba(255,255,255,.95)';ctx.fillStyle='rgba(255,255,255,.15)';
  if(skillAim.kind==='mobility'){
-   const key=skillAim.button?.dataset.guardianCast||skillAim.button?.dataset.archerCast||(skillAim.button?.id==='castLightdash'?'lightdash':'');
-   const range=key==='shieldrush'?(evolvedSkills.has('shieldrush')?580:440):key==='rain'?420:key==='bulwark'?65:169;
+   const key=skillAim.button?.dataset.guardianCast||skillAim.button?.dataset.archerCast||(skillAim.button?.id==='castLightdash'?'lightdash':skillAim.button?.id==='castMelody'?'melody':skillAim.button?.id==='castThorns'?'thorns':'');
+   const range=key==='shieldrush'?(evolvedSkills.has('shieldrush')?580:440):key==='rain'?420:['poison','trap','melody','thorns'].includes(key)?310:key==='bulwark'?65:169;
    const edgeX=d.x>0?(world.w-24-player.x)/d.x:d.x<0?(24-player.x)/d.x:range;
    const edgeY=d.y>0?(world.h-90-player.y)/d.y:d.y<0?(90-player.y)/d.y:range;
    let length=Math.max(0,Math.min(range,edgeX,edgeY));
@@ -1423,7 +1431,9 @@ for(const a of bossProjectiles){
 for(const a of bowShots){const x=a.x-camX,y=a.y-camY;ctx.save();ctx.translate(x,y);ctx.rotate(a.angle);ctx.fillStyle='#704c2d';ctx.fillRect(-15,-2,27,4);ctx.fillStyle='#e9dfad';ctx.beginPath();ctx.moveTo(17,0);ctx.lineTo(7,-6);ctx.lineTo(7,6);ctx.fill();ctx.fillStyle='#d6e9f5';ctx.fillRect(-15,-6,5,12);ctx.restore()}
 for(const v of skillVisuals){
  const x=v.x-camX,y=v.y-camY;if(x < -160 || y < -160 || x > canvas.width+160 || y > canvas.height+160)continue;ctx.save();ctx.translate(x,y);ctx.rotate(v.angle||0);
- if(v.kind==='meteor'){ctx.globalAlpha=Math.max(0,1-v.age/.85);ctx.fillStyle='#ff9b32';ctx.beginPath();ctx.arc(0,-Math.max(0,.55-v.age)*160,20+v.age*20,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#ffd46a';ctx.lineWidth=4;ctx.beginPath();ctx.arc(0,0,100,0,Math.PI*2);ctx.stroke();
+ if(v.kind==='skillThrown'){ctx.rotate(v.age*18);ctx.shadowColor='#8fffea';ctx.shadowBlur=12;ctx.fillStyle=v.payload==='poison'?'#a8ed66':v.payload==='trap'?'#a8a4d5':v.payload==='thorns'?'#64ce77':'#6be9d5';ctx.beginPath();ctx.arc(0,0,10,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+ }else if(v.kind==='smokeCloud'||v.kind==='poisonCloud'){const poison=v.kind==='poisonCloud',radius=(poison?65:115)*(0.7+Math.min(1,v.age)*.3);ctx.globalAlpha=Math.max(0,.5-v.age*.13);ctx.fillStyle=poison?'#8be25a':'#9691b6';for(let i=0;i<9;i++){const a=i*Math.PI*2/9+v.age*.2;ctx.beginPath();ctx.arc(Math.cos(a)*radius*.5,Math.sin(a)*radius*.5,radius*.5,0,Math.PI*2);ctx.fill()}ctx.strokeStyle=poison?'#d9ff98':'#e4dbff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,radius,0,Math.PI*2);ctx.stroke();
+ }else if(v.kind==='meteor'){ctx.globalAlpha=Math.max(0,1-v.age/.85);ctx.fillStyle='#ff9b32';ctx.beginPath();ctx.arc(0,-Math.max(0,.55-v.age)*160,20+v.age*20,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#ffd46a';ctx.lineWidth=4;ctx.beginPath();ctx.arc(0,0,100,0,Math.PI*2);ctx.stroke();
  }else if(v.kind==='evoBurst'){ctx.globalAlpha=Math.max(0,1-v.age/.45)*.65;ctx.strokeStyle='#e4b8ff';ctx.lineWidth=6;ctx.beginPath();ctx.arc(0,0,v.radius*(.5+v.age),0,Math.PI*2);ctx.stroke();
  }else if(v.kind==='thorns'){ctx.globalAlpha=Math.min(.65,(5-v.age)*.65);ctx.fillStyle='#4fa85b';ctx.beginPath();ctx.arc(0,0,82,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#c0f58b';ctx.lineWidth=4;ctx.beginPath();ctx.arc(0,0,82,0,Math.PI*2);ctx.stroke();ctx.font='27px sans-serif';ctx.fillText('🌿',-15,8);
  }else if(v.kind==='shadow'){
@@ -1752,12 +1762,8 @@ function castArcherSkill(k,direction=null){
   if(!targets.length){say('가까운 적이 없어요');return}
   for(const e of targets)for(let n=0;n<3;n++)damageEnemy(e,damage*(evolvedSkills.has(k)?1.25:0.8),'normal');
   skillVisuals.push({kind:'evoBurst',x:player.x,y:player.y,age:0,radius:125});archerCooldowns[k]=7;
-}else if(k==='poison'){
-  if(!target||Math.hypot(target.x-player.x,target.y-player.y)>135){say('사거리 안에 적이 없어요');return}
-  damageEnemy(target,damage,'normal');target.archerPoison=(target.archerPoison||0)+(evolvedSkills.has(k)?8:5);target.archerPoisonClock=0;archerCooldowns[k]=10;
- }else if(k==='trap'){
-  for(const e of enemies)if(e.hp>0&&Math.hypot(e.x-player.x,e.y-player.y)<(evolvedSkills.has(k)?210:145)){damageEnemy(e,damage,'normal');e.stunned=Math.max(e.stunned||0,e.boss?.6:2.5)}
-  skillVisuals.push({kind:'evoBurst',x:player.x,y:player.y,age:0,radius:150});archerCooldowns[k]=14;
+}else if(k==='poison'){throwSkill('poison',direction);archerCooldowns[k]=10;
+ }else if(k==='trap'){throwSkill('trap',direction);archerCooldowns[k]=14;
   }else if(k==='rain'){
   if(!target||Math.hypot(target.x-player.x,target.y-player.y)>420){say('돌진할 적이 없어요');return}
   const tx=target.x-dir.x*48,ty=target.y-dir.y*48;
@@ -1800,6 +1806,9 @@ function bindDirectionalSkillAim(button,cast){
  button.addEventListener('pointerup',end);button.addEventListener('pointercancel',end);button.addEventListener('lostpointercapture',end);
  button.addEventListener('click',e=>{if(blockClick){e.preventDefault();e.stopImmediatePropagation();blockClick=false}},true);
 }
+bindDirectionalSkillAim(document.getElementById('castMelody'),d=>castHealingMelody(d));
+bindDirectionalSkillAim(document.getElementById('castThorns'),d=>castNewSkill('thorns',d));
+for(const b of archerButtons.children)if(['poison','trap'].includes(b.dataset.archerCast))bindDirectionalSkillAim(b,d=>castArcherSkill(b.dataset.archerCast,d));
 bindDirectionalSkillAim(document.getElementById('castLightdash'),d=>castNewSkill('lightdash',d));
 for(const b of guardianButtons.children)if(['shieldrush','bulwark'].includes(b.dataset.guardianCast))bindDirectionalSkillAim(b,d=>castGuardianSkill(b.dataset.guardianCast,d));
 for(const b of archerButtons.children)if(b.dataset.archerCast==='rain')bindDirectionalSkillAim(b,d=>castArcherSkill('rain',d));
