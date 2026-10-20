@@ -1287,10 +1287,40 @@ if(bowPointer!==null){
 }
 if(aimPointer!==null){
  const d=aimDirection||facing,a=Math.atan2(d.y,d.x),px=player.x-camX,py=player.y-camY;
- // Sword hit test: boss 112, ordinary targets 78; front-facing arc uses dot > -.15.
- ctx.save();ctx.fillStyle='rgba(255,255,255,.12)';ctx.strokeStyle='rgba(255,255,255,.95)';ctx.lineWidth=2.5;
- ctx.beginPath();ctx.moveTo(px,py);ctx.arc(px,py,78,a-Math.acos(-.15),a+Math.acos(-.15));ctx.closePath();ctx.fill();ctx.stroke();
- ctx.setLineDash([5,5]);ctx.beginPath();ctx.arc(px,py,112,a-Math.acos(-.15),a+Math.acos(-.15));ctx.stroke();ctx.restore();
+ ctx.save();
+ if(playerClass==='mage'){
+  // Match the blue projectile's exact spawn point, velocity and 1.4-second lifetime.
+  const sx=player.x+d.x*22,sy=player.y-17+d.y*22;
+  const range=440*1.4;
+  const tx=sx+d.x*range,ty=sy+d.y*range;
+  let t=1;
+  if(d.x>0)t=Math.min(t,(world.w-sx)/(tx-sx));
+  else if(d.x<0)t=Math.min(t,(0-sx)/(tx-sx));
+  if(d.y>0)t=Math.min(t,(world.h-sy)/(ty-sy));
+  else if(d.y<0)t=Math.min(t,(0-sy)/(ty-sy));
+  for(const e of enemies){
+   if(e.hp<=0)continue;
+   const ex=e.x-sx,ey=e.y-sy,along=ex*d.x+ey*d.y;
+   if(along<0||along>range*t)continue;
+   const perpendicular=Math.abs(ex*d.y-ey*d.x);
+   const radius=e.boss?39:26;
+   if(perpendicular<radius+8){
+    const entry=Math.max(0,along-Math.sqrt(Math.max(0,(radius+8)**2-perpendicular**2)));
+    t=Math.min(t,entry/range);
+   }
+  }
+  const x1=sx-camX,y1=sy-camY,x2=sx+d.x*range*t-camX,y2=sy+d.y*range*t-camY;
+  ctx.strokeStyle='rgba(76,197,255,.9)';ctx.lineWidth=3;
+  ctx.setLineDash([8,7]);ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='rgba(65,174,255,.28)';ctx.strokeStyle='#9eeaff';ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(x2,y2,8,0,Math.PI*2);ctx.fill();ctx.stroke();
+ }else{
+  // Swords retain the original melee arc preview.
+  ctx.fillStyle='rgba(255,255,255,.12)';ctx.strokeStyle='rgba(255,255,255,.95)';ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.moveTo(px,py);ctx.arc(px,py,78,a-Math.acos(-.15),a+Math.acos(-.15));ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.setLineDash([5,5]);ctx.beginPath();ctx.arc(px,py,112,a-Math.acos(-.15),a+Math.acos(-.15));ctx.stroke();
+ }
+ ctx.restore();
 }
 // Black-purple magic orb, luminous edge and trailing sparks.
 for(const orb of darkOrbs){
