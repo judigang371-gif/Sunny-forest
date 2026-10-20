@@ -81,7 +81,7 @@ let animationTime=0,playerHop=0,playerMoving=false;
 let aimDirection=null, swingTime=0, swingAngle=0,bowShots=[],bowCooldown=0;const BOW_MAX_CHARGE=2.5;let bowChargeStart=0;let facing={x:1,y:0},enemies=[],drops=[],trees=[],ores=[],slashes=[],attackCd=0,spawnTimer=0,saveTimer=0,msgTime=0,message='햇살 마을에 오신 걸 환영해요!',joy={x:0,y:0},keys={},last=0;
 const colors=['#29c9ee','#a5ed69','#f49cc7','#d4a5ff'],names=['별빛 식물 슬라임','초록 식물 슬라임','분홍 식물 슬라임','보라 식물 슬라임'];
 function say(s){message=s;msgTime=2.6;document.getElementById('msg').textContent=s;document.getElementById('msg').style.opacity=1}
-function spawn(){if(!['forest','blueforest','purpleforest'].includes(mapId))return;let k=Math.random()*4|0;const hard=mapId==='blueforest'||mapId==='purpleforest';const purple=mapId==='purpleforest';enemies.push({x:clamp(player.x+(Math.random()-.5)*840,90,world.w-50),y:clamp(player.y+(Math.random()-.5)*600,110,world.h-50),kind:k,hp:(purple?35:hard?19:9)+Math.min(level-1,8)+k*(hard?5:3),max:(purple?35:hard?19:9)+Math.min(level-1,8)+k*(hard?5:3),displayHp:(purple?35:hard?19:9)+Math.min(level-1,8)+k*(hard?5:3),trailHp:(purple?35:hard?19:9)+Math.min(level-1,8)+k*(hard?5:3),trailDelay:0,speed:(purple?66:hard?53:38)+k*9,damage:(purple?10:hard?7:4)+k*2,xp:(purple?24:hard?15:8)+k*3,cool:Math.random(),orbCooldown:20,orbCastAnim:0,hopPhase:Math.random()*6.283,moveAmount:0})}
+function spawn(){if(!['forest','blueforest','purpleforest'].includes(mapId))return;let k=Math.random()*4|0;const hard=mapId==='blueforest'||mapId==='purpleforest';const purple=mapId==='purpleforest';enemies.push({x:clamp(player.x+(Math.random()-.5)*840,90,world.w-50),y:clamp(player.y+(Math.random()-.5)*600,110,world.h-50),kind:k,hp:(purple?35:hard?19:9)+Math.min(level-1,8)+k*(hard?5:3),max:(purple?35:hard?19:9)+Math.min(level-1,8)+k*(hard?5:3),displayHp:(purple?35:hard?19:9)+Math.min(level-1,8)+k*(hard?5:3),trailHp:(purple?35:hard?19:9)+Math.min(level-1,8)+k*(hard?5:3),trailDelay:0,speed:(purple?66:hard?53:38)+k*9,damage:(purple?10:hard?7:4)+k*2,xp:(purple?24:hard?15:8)+k*3,cool:Math.random(),orbCooldown:purple?5:20,orbCastAnim:0,hopPhase:Math.random()*6.283,moveAmount:0})}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 for(let x=70;x<world.w;x+=145)for(const y of [130,410,520,680,820,980,1120,1270]){
  const tx=x+Math.sin(x+y)*30,ty=y;
@@ -899,9 +899,9 @@ let dx=stunTime>0?0:joy.x,dy=stunTime>0?0:joy.y;if(stunTime<=0){if(keys.a||keys.
 if(!sharedEnemyGuest&&mapId==='purpleforest')for(const e of enemies){
  if(e.boss||e.hp<=0)continue;
  e.orbCastAnim=Math.max(0,(e.orbCastAnim||0)-dt);
- e.orbCooldown=(e.orbCooldown??20)-dt*(e.paralyzeTime>0?.5:1);
+ e.orbCooldown=(e.orbCooldown??5)-dt*(e.paralyzeTime>0?.5:1);
  if(e.orbCooldown<=0){
-  e.orbCooldown+=20;
+  e.orbCooldown+=5;
   e.orbCastAnim=.55;
   const angle=Math.atan2(player.y-e.y,player.x-e.x);
   darkOrbs.push({x:e.x,y:e.y-18,vx:Math.cos(angle)*175,vy:Math.sin(angle)*175,age:0,damage:Math.max(3,Math.round(e.damage*.75))});
