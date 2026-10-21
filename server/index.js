@@ -73,6 +73,8 @@ wss.on('connection',ws=>{
    const cfg=MAPS[room.map];player.x=clamp(player.x+dx/len*step,20,cfg.w-20);player.y=clamp(player.y+dy/len*step,85,cfg.h-20);
   }else if(msg.type==='attack'){
    const t=now();if(t-lastAttack<380)return;lastAttack=t;
+   // Apply a bounded position correction before resolving a melee hit.
+   if(finite(msg.x)&&finite(msg.y)){const cfg=MAPS[room.map],tx=clamp(msg.x,20,cfg.w-20),ty=clamp(msg.y,85,cfg.h-20);const elapsed=clamp((t-player.lastMoveAt)/1000,0,.3),limit=340*elapsed+12,dist=Math.hypot(tx-player.x,ty-player.y);if(dist>0){const ratio=Math.min(1,limit/dist);player.x+=(tx-player.x)*ratio;player.y+=(ty-player.y)*ratio}player.lastMoveAt=t}
    const dx=finite(msg.dx)?msg.dx:1,dy=finite(msg.dy)?msg.dy:0,len=Math.hypot(dx,dy)||1;
    let hit=null,best=Infinity;
    for(const e of room.enemies.values()){const ex=e.x-player.x,ey=e.y-player.y,d=Math.hypot(ex,ey);
