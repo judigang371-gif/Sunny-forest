@@ -142,6 +142,7 @@ function faceNearestEnemy(){
 function attackNow(){
  if(window.sunnyServerForestAttack?.()){
   if(attackCd>0)return;
+  faceNearestEnemy();
   attackCd=playerClass==='guardian'?.50:playerClass==='rogue'?.46:.38;
   swingTime=.32;swingAngle=Math.atan2(facing.y,facing.x);
   slashes.push({x:player.x,y:player.y,angle:swingAngle,age:0,duration:.29,kind:playerClass==='guardian'?'shield':playerClass==='rogue'?'dagger':'sword'});
@@ -2177,7 +2178,7 @@ function connect(){
    if(m.type==='welcome'){if(combatMode)window.sunnyServerConnected=true;lastPosition=null;panel.firstChild.textContent='🟢 서버 입장 성공 · ID '+String(m.id).slice(0,8);}
    if(m.type==='snapshot'){serverEnemies=Array.isArray(m.enemies)?m.enemies:[];if(combatMode)window.sunnyServerForestSnapshot?.(m);panel.firstChild.textContent='🟢 서버 정상 동기화 · 플레이어 '+m.players.length+'명 · 몬스터 '+m.enemies.length+'마리 · seq '+m.seq;}
    if(m.type==='hurt'&&combatMode)window.sunnyServerForestHurt?.(m.damage);
-   if(m.type==='attackResult'&&combatMode)hint.textContent=m.hit?'⚔️ 서버 명중! 몬스터 HP '+m.hp:'⚠️ 공격 빗나감 · 몬스터에게 가까이 가서 공격해 봐';
+   if(m.type==='attackResult'&&combatMode)hint.textContent=m.hit?'⚔️ 서버 명중! 몬스터 HP '+m.hp:'⚠️ 빗나감 · 거리 '+Math.round(m.distance||0)+' / 사거리 '+Math.round(m.range||105);
    if(m.type==='error')panel.firstChild.textContent='🔴 서버 오류: '+String(m.message).slice(0,90);
   }catch{}
  });
