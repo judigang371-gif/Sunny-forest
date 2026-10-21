@@ -75,8 +75,11 @@ wss.on('connection',ws=>{
    const t=now();if(t-lastAttack<380)return;lastAttack=t;
    const dx=finite(msg.dx)?msg.dx:1,dy=finite(msg.dy)?msg.dy:0,len=Math.hypot(dx,dy)||1;
    let hit=null,best=Infinity;
-   for(const e of room.enemies.values()){const ex=e.x-player.x,ey=e.y-player.y,d=Math.hypot(ex,ey);if(d>85||d>=best||(ex*dx+ey*dy)/(d*len)<.25)continue;hit=e;best=d}
-   if(hit){hit.hp-=8;if(hit.hp<=0){room.enemies.delete(hit.id);send(ws,{type:'kill',enemyId:hit.id})}}
+   for(const e of room.enemies.values()){const ex=e.x-player.x,ey=e.y-player.y,d=Math.hypot(ex,ey);
+    if(d>105||d>=best||(ex*dx+ey*dy)/(Math.max(1,d)*len)<-.1)continue;hit=e;best=d}
+   if(hit){hit.hp=Math.max(0,hit.hp-8);send(ws,{type:'attackResult',hit:true,enemyId:hit.id,hp:hit.hp});
+    if(hit.hp<=0){room.enemies.delete(hit.id);send(ws,{type:'kill',enemyId:hit.id})}
+   }else send(ws,{type:'attackResult',hit:false});
   }
  });
  ws.on('close',()=>{if(room){room.players.delete(id);if(!room.players.size){room.enemies.clear();room.projectiles=[]}}});
