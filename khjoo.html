@@ -2165,7 +2165,7 @@ function connect(){
  });
  ws.addEventListener('message',ev=>{
   try{const m=JSON.parse(ev.data);
-   if(m.type==='welcome')panel.firstChild.textContent='🟢 서버 입장 성공 · ID '+String(m.id).slice(0,8);
+   if(m.type==='welcome'){lastPosition=null;panel.firstChild.textContent='🟢 서버 입장 성공 · ID '+String(m.id).slice(0,8);}
    if(m.type==='snapshot'){serverEnemies=Array.isArray(m.enemies)?m.enemies:[];if(combatMode)window.sunnyServerForestSnapshot?.(m);panel.firstChild.textContent='🟢 서버 정상 동기화 · 플레이어 '+m.players.length+'명 · 몬스터 '+m.enemies.length+'마리 · seq '+m.seq;}
    if(m.type==='error')panel.firstChild.textContent='🔴 서버 오류: '+String(m.message).slice(0,90);
   }catch{}
@@ -2180,10 +2180,10 @@ if(combatMode){
  setInterval(()=>{
   if(ws?.readyState!==WebSocket.OPEN)return;
   const p=window.sunnyServerForestState?.();if(!p||p.map!=='forest'){lastPosition=null;return}
-  if(lastPosition){const dx=p.x-lastPosition.x,dy=p.y-lastPosition.y,d=Math.hypot(dx,dy);
-   if(d>1)ws.send(JSON.stringify({type:'input',dx:dx/d,dy:dy/d}));
+  if(!lastPosition||Math.hypot(p.x-lastPosition.x,p.y-lastPosition.y)>.25){
+   ws.send(JSON.stringify({type:'position',x:p.x,y:p.y}));
+   lastPosition={x:p.x,y:p.y};
   }
-  lastPosition={x:p.x,y:p.y};
  },100);
 }
 window.addEventListener('pagehide',()=>{closed=true;clearTimeout(retry);ws?.close()},{once:true});
