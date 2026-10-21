@@ -140,7 +140,13 @@ function faceNearestEnemy(){
  facing={x:dx/d,y:dy/d};return true;
 }
 function attackNow(){
- if(window.sunnyServerForestAttack?.()){window.dispatchEvent(new CustomEvent('sunny-server-attack',{detail:{dx:facing.x,dy:facing.y}}));return}
+ if(window.sunnyServerForestAttack?.()){
+  if(attackCd>0)return;
+  attackCd=playerClass==='guardian'?.50:playerClass==='rogue'?.46:.38;
+  swingTime=.32;swingAngle=Math.atan2(facing.y,facing.x);
+  slashes.push({x:player.x,y:player.y,angle:swingAngle,age:0,duration:.29,kind:playerClass==='guardian'?'shield':playerClass==='rogue'?'dagger':'sword'});
+  window.dispatchEvent(new CustomEvent('sunny-server-attack',{detail:{dx:facing.x,dy:facing.y}}));return;
+ }
  if(playerClass==='mage'){mageBasicAttack();return}
  if(playerSwordLock>0){say('🔒 검 사용 불가! '+Math.ceil(playerSwordLock)+'초 남음');return}
  if(attackCd>0)return;
@@ -225,6 +231,7 @@ window.sunnyServerForestSnapshot=(data)=>{
  });
 };
 window.sunnyServerForestAttack=()=>serverForestMode&&mapId==='forest';
+window.sunnyServerForestHurt=(damage)=>{if(serverForestMode&&mapId==='forest'&&Number.isFinite(damage)&&damage>0)hurtPlayer(damage)};
 window.sunnyEnemyGuest=(v)=>{sharedEnemyGuest=!!v};
 window.sunnyEnemyImport=(data)=>{
  if(!sharedEnemyGuest||!data||data.map!==mapId||!Array.isArray(data.enemies))return;
@@ -2167,6 +2174,7 @@ function connect(){
   try{const m=JSON.parse(ev.data);
    if(m.type==='welcome'){lastPosition=null;panel.firstChild.textContent='🟢 서버 입장 성공 · ID '+String(m.id).slice(0,8);}
    if(m.type==='snapshot'){serverEnemies=Array.isArray(m.enemies)?m.enemies:[];if(combatMode)window.sunnyServerForestSnapshot?.(m);panel.firstChild.textContent='🟢 서버 정상 동기화 · 플레이어 '+m.players.length+'명 · 몬스터 '+m.enemies.length+'마리 · seq '+m.seq;}
+   if(m.type==='hurt'&&combatMode)window.sunnyServerForestHurt?.(m.damage);
    if(m.type==='error')panel.firstChild.textContent='🔴 서버 오류: '+String(m.message).slice(0,90);
   }catch{}
  });
@@ -2176,7 +2184,11 @@ function connect(){
 if(combatMode){
  panel.style.borderColor='#f59e0b';
  const hint=document.createElement('div');hint.textContent='⚠️ 별빛 숲 서버 전투 실험 · 일반 공격만 · 보상 없음';hint.style.cssText='color:#fde68a;margin-top:6px';panel.appendChild(hint);
- window.addEventListener('sunny-server-attack',e=>{if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify({type:'attack',dx:e.detail.dx,dy:e.detail.dy}))});
+ window.addEventListener('sunny-server-attack',e=>{if(ws?.readyState!==WebSocket.OPEN)return;
+  const p=window.sunnyServerForestState?.();
+  if(p?.map==='forest')ws.send(JSON.stringify({type:'position',x:p.x,y:p.y}));
+  ws.send(JSON.stringify({type:'attack',dx:e.detail.dx,dy:e.detail.dy}));
+ });
  setInterval(()=>{
   if(ws?.readyState!==WebSocket.OPEN)return;
   const p=window.sunnyServerForestState?.();if(!p||p.map!=='forest'){lastPosition=null;return}
