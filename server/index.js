@@ -51,11 +51,22 @@ wss.on('connection',ws=>{
    if(room)return;
    const map=String(msg.map||'');if(!MAPS[map])return send(ws,{type:'error',message:'Unsupported map'});
    room=roomFor(map);const cfg=MAPS[map];
-   player={id,ws,x:clamp(finite(msg.x)?msg.x:200,20,cfg.w-20),y:clamp(finite(msg.y)?msg.y:200,85,cfg.h-20),hp:100,maxHp:100,name:String(msg.name||'Player').slice(0,24)};
+   player={id,ws,x:clamp(finite(msg.x)?msg.x:200,20,cfg.w-20),y:clamp(finite(msg.y)?msg.y:200,85,cfg.h-20),hp:100,maxHp:100,lastMoveAt:now(),name:String(msg.name||'Player').slice(0,24)};
    room.players.set(id,player);send(ws,{type:'welcome',id,map,tickMs:TICK_MS});send(ws,snapshot(room));return;
   }
   if(!room||!player)return;
-  if(msg.type==='input'){
+  if(msg.type==='position'){
+   // Server validates reported coordinates against elapsed-time movement budget.
+   // This is a transitional protocol until all movement is server-simulated.
+   if(!finite(msg.x)||!finite(msg.y))return;
+   const t=now(),elapsed=clamp((t-player.lastMoveAt)/1000,0,.3);
+   if(elapsed<.035)return;
+   player.lastMoveAt=t;
+   const cfg=MAPS[room.map],tx=clamp(msg.x,20,cfg.w-20),ty=clamp(msg.y,85,cfg.h-20);
+   const dx=tx-player.x,dy=ty-player.y,dist=Math.hypot(dx,dy);
+   const limit=340*elapsed+8;
+   if(dist>0){const ratio=Math.min(1,limit/dist);player.x+=dx*ratio;player.y+=dy*ratio}
+  }else if(msg.type==='input'){
    const t=now();if(t-lastInput<25)return;lastInput=t;
    const dx=finite(msg.dx)?clamp(msg.dx,-1,1):0,dy=finite(msg.dy)?clamp(msg.dy,-1,1):0;
    const len=Math.max(1,Math.hypot(dx,dy)),speed=170,step=speed*.12;
