@@ -230,7 +230,8 @@ window.sunnyServerForestSnapshot=(data)=>{
    xp:0,cool:1,hopPhase:old.hopPhase||0,moveAmount:0};
  });
 };
-window.sunnyServerForestAttack=()=>serverForestMode&&mapId==='forest';
+window.sunnyServerForestAttack=()=>serverForestMode&&mapId==='forest'&&window.sunnyServerConnected===true;
+window.sunnyServerForestDisconnect=()=>{sharedEnemyGuest=false;enemies=enemies.filter(e=>!e.serverId)};
 window.sunnyServerForestHurt=(damage)=>{if(serverForestMode&&mapId==='forest'&&Number.isFinite(damage)&&damage>0)hurtPlayer(damage)};
 window.sunnyEnemyGuest=(v)=>{sharedEnemyGuest=!!v};
 window.sunnyEnemyImport=(data)=>{
@@ -2172,7 +2173,7 @@ function connect(){
  });
  ws.addEventListener('message',ev=>{
   try{const m=JSON.parse(ev.data);
-   if(m.type==='welcome'){lastPosition=null;panel.firstChild.textContent='🟢 서버 입장 성공 · ID '+String(m.id).slice(0,8);}
+   if(m.type==='welcome'){if(combatMode)window.sunnyServerConnected=true;lastPosition=null;panel.firstChild.textContent='🟢 서버 입장 성공 · ID '+String(m.id).slice(0,8);}
    if(m.type==='snapshot'){serverEnemies=Array.isArray(m.enemies)?m.enemies:[];if(combatMode)window.sunnyServerForestSnapshot?.(m);panel.firstChild.textContent='🟢 서버 정상 동기화 · 플레이어 '+m.players.length+'명 · 몬스터 '+m.enemies.length+'마리 · seq '+m.seq;}
    if(m.type==='hurt'&&combatMode)window.sunnyServerForestHurt?.(m.damage);
    if(m.type==='attackResult'&&combatMode)hint.textContent=m.hit?'⚔️ 서버 명중! 몬스터 HP '+m.hp:'⚠️ 공격 빗나감 · 몬스터에게 가까이 가서 공격해 봐';
@@ -2180,7 +2181,7 @@ function connect(){
   }catch{}
  });
  ws.addEventListener('error',()=>{panel.firstChild.textContent='🔴 WebSocket 연결 오류 · Render 로그 확인'});
- ws.addEventListener('close',()=>{if(!closed){panel.firstChild.textContent='🟠 서버 연결 종료 · 5초 후 재시도';retry=setTimeout(connect,5000)}});
+ ws.addEventListener('close',()=>{if(combatMode){window.sunnyServerConnected=false;window.sunnyServerForestDisconnect?.()}if(!closed){panel.firstChild.textContent='🟠 서버 연결 종료 · 5초 후 재시도';retry=setTimeout(connect,5000)}});
 }
 if(combatMode){
  panel.style.borderColor='#f59e0b';
