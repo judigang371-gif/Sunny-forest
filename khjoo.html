@@ -2190,7 +2190,7 @@ if(combatMode){
  window.addEventListener('sunny-server-attack',e=>{if(ws?.readyState!==WebSocket.OPEN)return;
   const p=window.sunnyServerForestState?.();
   if(p?.map==='forest')ws.send(JSON.stringify({type:'position',x:p.x,y:p.y}));
-  ws.send(JSON.stringify({type:'attack',dx:e.detail.dx,dy:e.detail.dy}));
+  ws.send(JSON.stringify({type:'attack',dx:e.detail.dx,dy:e.detail.dy,x:p?.x,y:p?.y}));
  });
  setInterval(()=>{
   if(ws?.readyState!==WebSocket.OPEN)return;
