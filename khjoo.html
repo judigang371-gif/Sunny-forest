@@ -233,9 +233,10 @@ window.sunnyServerForestSnapshot=(data)=>{
 window.sunnyServerForestAttack=()=>serverForestMode&&mapId==='forest'&&window.sunnyServerConnected===true;
 window.sunnyServerForestDisconnect=()=>{sharedEnemyGuest=false;enemies=enemies.filter(e=>!e.serverId)};
 window.sunnyServerForestHurt=(damage)=>{if(serverForestMode&&mapId==='forest'&&Number.isFinite(damage)&&damage>0)hurtPlayer(damage)};
-window.sunnyEnemyGuest=(v)=>{sharedEnemyGuest=!!v};
+window.sunnyEnemyGuest=(v)=>{if(serverForestMode&&mapId==='forest')return;sharedEnemyGuest=!!v};
 window.sunnyEnemyImport=(data)=>{
- if(!sharedEnemyGuest||!data||data.map!==mapId||!Array.isArray(data.enemies))return;
+ if(serverForestMode&&mapId==='forest')return;
+  if(!sharedEnemyGuest||!data||data.map!==mapId||!Array.isArray(data.enemies))return;
  const old=enemies;
  if(data.bossState){const b=data.bossState;bossFightWon=!!b.bossFightWon;boss2Won=!!b.boss2Won;boss3Won=!!b.boss3Won;for(const k of ['bossHazards','bossProjectiles','crystalEffects','dragonFireballs','dragonFireZones','darkOrbs'])if(Array.isArray(b[k])){const v=b[k].slice(0,120);if(k==='bossHazards')bossHazards=v;else if(k==='bossProjectiles')bossProjectiles=v;else if(k==='crystalEffects')crystalEffects=v;else if(k==='dragonFireballs')dragonFireballs=v;else if(k==='dragonFireZones')dragonFireZones=v;else darkOrbs=v;}}
  enemies=data.enemies.slice(0,35).map((e,i)=>{
@@ -287,7 +288,7 @@ window.sunnyCoopApply=(hits,sourceMap)=>{
 function damageEnemy(e,amount,kind='normal'){
  const dealt=Math.min(Math.max(0,e.hp),Math.max(0,amount));
  if(!coopRemoteHit&&berserkTime>0&&evolvedSkills.has('berserk')&&dealt>0&&evolutionLifestealTick<=0){hp=Math.min(maxPlayerHp(),hp+Math.min(3,dealt*.18));evolutionLifestealTick=.25;}
- if(!coopRemoteHit&&dealt>0&&window.sunnyAuthReady){
+ if(!coopRemoteHit&&dealt>0&&window.sunnyAuthReady&&!window.sunnyServerForestAttack?.()){
   coopHitQueue.push({x:Math.round(e.x),y:Math.round(e.y),d:Math.round(dealt*10)/10,boss:!!e.boss});
   if(coopHitQueue.length>100)coopHitQueue.splice(0,coopHitQueue.length-100);
  }
