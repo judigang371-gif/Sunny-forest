@@ -143,7 +143,7 @@ function attackNow(){
  if(playerClass==='mage'){mageBasicAttack();return}
  if(playerSwordLock>0){say('🔒 검 사용 불가! '+Math.ceil(playerSwordLock)+'초 남음');return}
  if(attackCd>0)return;
- attackCd=.38/((berserkTime>0?1.4:1)*(1+swordAttackSpeed()));swingTime=.32/((berserkTime>0?1.4:1)*(1+swordAttackSpeed()));swingAngle=Math.atan2(facing.y,facing.x);
+ const basicAttackDelay=playerClass==='guardian'?.50:playerClass==='rogue'?.46:.38;attackCd=basicAttackDelay/((berserkTime>0?1.4:1)*(1+swordAttackSpeed()));swingTime=.32/((berserkTime>0?1.4:1)*(1+swordAttackSpeed()));swingAngle=Math.atan2(facing.y,facing.x);
  const angle=Math.atan2(facing.y,facing.x);
  slashes.push({x:player.x,y:player.y,angle,age:0,duration:.29,kind:playerClass==='guardian'?'shield':playerClass==='rogue'?'dagger':'sword'});hitCrystalPrison();
  let hit=false;
