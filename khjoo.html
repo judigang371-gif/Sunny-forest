@@ -81,7 +81,7 @@ let animationTime=0,playerHop=0,playerMoving=false;
 let aimDirection=null, swingTime=0, swingAngle=0,bowShots=[],bowCooldown=0;const BOW_MAX_CHARGE=2.5;let bowChargeStart=0;let facing={x:1,y:0},enemies=[],drops=[],trees=[],ores=[],slashes=[],attackCd=0,spawnTimer=0,saveTimer=0,msgTime=0,message='햇살 마을에 오신 걸 환영해요!',joy={x:0,y:0},keys={},last=0;
 const colors=['#29c9ee','#a5ed69','#f49cc7','#d4a5ff'],names=['별빛 식물 슬라임','초록 식물 슬라임','분홍 식물 슬라임','보라 식물 슬라임'];
 function say(s){message=s;msgTime=2.6;document.getElementById('msg').textContent=s;document.getElementById('msg').style.opacity=1}
-function spawn(){if(!['forest','blueforest','purpleforest'].includes(mapId))return;let k=Math.random()*4|0;const hard=mapId==='blueforest'||mapId==='purpleforest';const purple=mapId==='purpleforest';enemies.push({x:clamp(player.x+(Math.random()-.5)*840,90,world.w-50),y:clamp(player.y+(Math.random()-.5)*600,110,world.h-50),kind:k,hp:(purple?35:hard?19:9)+Math.min(level-1,8)+k*(hard?5:3),max:(purple?35:hard?19:9)+Math.min(level-1,8)+k*(hard?5:3),displayHp:(purple?35:hard?19:9)+Math.min(level-1,8)+k*(hard?5:3),trailHp:(purple?35:hard?19:9)+Math.min(level-1,8)+k*(hard?5:3),trailDelay:0,speed:(purple?66:hard?53:38)+k*9,damage:(purple?16:hard?7:4)+k*(purple?3:2),xp:(purple?24:hard?15:8)+k*3,cool:Math.random(),orbCooldown:purple?3:20,orbCastAnim:0,hopPhase:Math.random()*6.283,moveAmount:0})}
+function spawn(){if(window.sunnyServerForestAttack?.())return;if(!['forest','blueforest','purpleforest'].includes(mapId))return;let k=Math.random()*4|0;const hard=mapId==='blueforest'||mapId==='purpleforest';const purple=mapId==='purpleforest';enemies.push({x:clamp(player.x+(Math.random()-.5)*840,90,world.w-50),y:clamp(player.y+(Math.random()-.5)*600,110,world.h-50),kind:k,hp:(purple?35:hard?19:9)+Math.min(level-1,8)+k*(hard?5:3),max:(purple?35:hard?19:9)+Math.min(level-1,8)+k*(hard?5:3),displayHp:(purple?35:hard?19:9)+Math.min(level-1,8)+k*(hard?5:3),trailHp:(purple?35:hard?19:9)+Math.min(level-1,8)+k*(hard?5:3),trailDelay:0,speed:(purple?66:hard?53:38)+k*9,damage:(purple?16:hard?7:4)+k*(purple?3:2),xp:(purple?24:hard?15:8)+k*3,cool:Math.random(),orbCooldown:purple?3:20,orbCastAnim:0,hopPhase:Math.random()*6.283,moveAmount:0})}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 for(let x=70;x<world.w;x+=145)for(const y of [130,410,520,680,820,980,1120,1270]){
  const tx=x+Math.sin(x+y)*30,ty=y;
@@ -140,6 +140,7 @@ function faceNearestEnemy(){
  facing={x:dx/d,y:dy/d};return true;
 }
 function attackNow(){
+ if(window.sunnyServerForestAttack?.()){window.dispatchEvent(new CustomEvent('sunny-server-attack',{detail:{dx:facing.x,dy:facing.y}}));return}
  if(playerClass==='mage'){mageBasicAttack();return}
  if(playerSwordLock>0){say('🔒 검 사용 불가! '+Math.ceil(playerSwordLock)+'초 남음');return}
  if(attackCd>0)return;
@@ -209,6 +210,21 @@ function monsterAttackPose(e){if(e.boss)return;e.attackAnim=.34;e.attackDuration
 // Shared enemy state: one elected room leader simulates monsters.
 let sharedEnemyGuest=false, sharedEnemySnapshot=null, sharedEnemyLast=0;
 window.sunnyEnemyExport=()=>({map:mapId, bossState:{bossFightWon,boss2Won,boss3Won,bossHazards,bossProjectiles,crystalEffects,dragonFireballs,dragonFireZones,darkOrbs}, enemies:enemies.map(e=>({ ...e, swordHitTimes:undefined, crystalCooldowns:undefined, crystalQueue:undefined, volleyQueue:undefined })).map(e=>JSON.parse(JSON.stringify(e))), at:Date.now()});
+// Experimental authoritative forest mode: opt-in only, never active in normal play.
+const serverForestMode=new URLSearchParams(location.search).get('serverCombat')==='1';
+window.sunnyServerForestState=()=>({map:mapId,x:player.x,y:player.y,dx:facing.x,dy:facing.y});
+window.sunnyServerForestSnapshot=(data)=>{
+ if(!serverForestMode||mapId!=='forest'||!data||!Array.isArray(data.enemies))return;
+ sharedEnemyGuest=true;
+ const oldById=new Map(enemies.filter(e=>e.serverId).map(e=>[e.serverId,e]));
+ enemies=data.enemies.slice(0,35).map(e=>{
+  const old=oldById.get(e.id)||{};
+  return {...old,serverId:e.id,x:e.x,y:e.y,kind:e.kind,hp:e.hp,max:e.max,
+   displayHp:e.hp,trailHp:e.hp,trailDelay:0,speed:e.speed,damage:e.damage,
+   xp:0,cool:1,hopPhase:old.hopPhase||0,moveAmount:0};
+ });
+};
+window.sunnyServerForestAttack=()=>serverForestMode&&mapId==='forest';
 window.sunnyEnemyGuest=(v)=>{sharedEnemyGuest=!!v};
 window.sunnyEnemyImport=(data)=>{
  if(!sharedEnemyGuest||!data||data.map!==mapId||!Array.isArray(data.enemies))return;
@@ -2129,13 +2145,14 @@ addEventListener('pagehide',cleanup);
 /* Optional authoritative-server connectivity test. Does not replace Firebase multiplayer. */
 (()=>{
 'use strict';
-if(new URLSearchParams(location.search).get('serverTest')!=='1')return;
+const combatMode=new URLSearchParams(location.search).get('serverCombat')==='1';
+if(!combatMode&&new URLSearchParams(location.search).get('serverTest')!=='1')return;
 const endpoint='wss://sunny-forest.onrender.com';
 const panel=document.createElement('div');
 panel.style.cssText='position:fixed;left:10px;top:10px;z-index:99999;background:#142236ed;color:white;padding:12px;border:1px solid #5eead4;border-radius:10px;font:13px system-ui;max-width:260px;box-shadow:0 4px 18px #0008';
 panel.textContent='🌐 서버 연결 확인 중…';
 document.body.appendChild(panel);
-let ws,closed=false,retry,serverEnemies=[];
+let ws,closed=false,retry,serverEnemies=[],lastPosition=null;
 const radar=document.createElement('canvas');radar.width=240;radar.height=180;radar.style.cssText='display:block;margin-top:8px;background:#081527;border-radius:6px';panel.appendChild(radar);
 function drawRadar(){if(closed)return;const ctx=radar.getContext('2d');ctx.clearRect(0,0,240,180);ctx.fillStyle='#081527';ctx.fillRect(0,0,240,180);for(const e of serverEnemies){if(!Number.isFinite(e.x)||!Number.isFinite(e.y))continue;const x=e.x/1600*240,y=e.y/1300*180;ctx.fillStyle='#fb7185';ctx.beginPath();ctx.arc(x,y,5,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff';ctx.font='10px sans-serif';ctx.fillText(Math.ceil(e.hp)+' HP',x+7,y-3)}requestAnimationFrame(drawRadar)}drawRadar();
 function connect(){
@@ -2144,17 +2161,30 @@ function connect(){
  ws=new WebSocket(endpoint);
  ws.addEventListener('open',()=>{
   panel.firstChild.textContent='🟢 WebSocket 연결됨 · 서버 입장 요청 중';
-  ws.send(JSON.stringify({type:'join',map:'forest',name:'연결 테스트',x:200,y:200}));
+  const p=window.sunnyServerForestState?.();ws.send(JSON.stringify({type:'join',map:'forest',name:combatMode?'서버 전투 테스트':'연결 테스트',x:combatMode?p?.x:200,y:combatMode?p?.y:200}));
  });
  ws.addEventListener('message',ev=>{
   try{const m=JSON.parse(ev.data);
    if(m.type==='welcome')panel.firstChild.textContent='🟢 서버 입장 성공 · ID '+String(m.id).slice(0,8);
-   if(m.type==='snapshot'){serverEnemies=Array.isArray(m.enemies)?m.enemies:[];panel.firstChild.textContent='🟢 서버 정상 동기화 · 플레이어 '+m.players.length+'명 · 몬스터 '+m.enemies.length+'마리 · seq '+m.seq;}
+   if(m.type==='snapshot'){serverEnemies=Array.isArray(m.enemies)?m.enemies:[];if(combatMode)window.sunnyServerForestSnapshot?.(m);panel.firstChild.textContent='🟢 서버 정상 동기화 · 플레이어 '+m.players.length+'명 · 몬스터 '+m.enemies.length+'마리 · seq '+m.seq;}
    if(m.type==='error')panel.firstChild.textContent='🔴 서버 오류: '+String(m.message).slice(0,90);
   }catch{}
  });
  ws.addEventListener('error',()=>{panel.firstChild.textContent='🔴 WebSocket 연결 오류 · Render 로그 확인'});
  ws.addEventListener('close',()=>{if(!closed){panel.firstChild.textContent='🟠 서버 연결 종료 · 5초 후 재시도';retry=setTimeout(connect,5000)}});
+}
+if(combatMode){
+ panel.style.borderColor='#f59e0b';
+ const hint=document.createElement('div');hint.textContent='⚠️ 별빛 숲 서버 전투 실험 · 일반 공격만 · 보상 없음';hint.style.cssText='color:#fde68a;margin-top:6px';panel.appendChild(hint);
+ window.addEventListener('sunny-server-attack',e=>{if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify({type:'attack',dx:e.detail.dx,dy:e.detail.dy}))});
+ setInterval(()=>{
+  if(ws?.readyState!==WebSocket.OPEN)return;
+  const p=window.sunnyServerForestState?.();if(!p||p.map!=='forest'){lastPosition=null;return}
+  if(lastPosition){const dx=p.x-lastPosition.x,dy=p.y-lastPosition.y,d=Math.hypot(dx,dy);
+   if(d>1)ws.send(JSON.stringify({type:'input',dx:dx/d,dy:dy/d}));
+  }
+  lastPosition={x:p.x,y:p.y};
+ },100);
 }
 window.addEventListener('pagehide',()=>{closed=true;clearTimeout(retry);ws?.close()},{once:true});
 connect();
