@@ -2125,4 +2125,36 @@ document.getElementById('chatSend').onclick=sendChat;
 document.getElementById('chatInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendChat()}});
 addEventListener('pagehide',cleanup);
 })();
+</script><script>
+/* Optional authoritative-server connectivity test. Does not replace Firebase multiplayer. */
+(()=>{
+'use strict';
+if(new URLSearchParams(location.search).get('serverTest')!=='1')return;
+const endpoint='wss://sunny-forest.onrender.com';
+const panel=document.createElement('div');
+panel.style.cssText='position:fixed;left:10px;top:10px;z-index:99999;background:#142236ed;color:white;padding:12px;border:1px solid #5eead4;border-radius:10px;font:13px system-ui;max-width:260px;box-shadow:0 4px 18px #0008';
+panel.textContent='🌐 서버 연결 확인 중…';
+document.body.appendChild(panel);
+let ws,closed=false,retry;
+function connect(){
+ if(closed)return;
+ panel.textContent='🌐 Render WebSocket 연결 중…';
+ ws=new WebSocket(endpoint);
+ ws.addEventListener('open',()=>{
+  panel.textContent='🟢 WebSocket 연결됨 · 서버 입장 요청 중';
+  ws.send(JSON.stringify({type:'join',map:'forest',name:'연결 테스트',x:200,y:200}));
+ });
+ ws.addEventListener('message',ev=>{
+  try{const m=JSON.parse(ev.data);
+   if(m.type==='welcome')panel.textContent='🟢 서버 입장 성공 · ID '+String(m.id).slice(0,8);
+   if(m.type==='snapshot')panel.textContent='🟢 서버 정상 동기화 · 플레이어 '+m.players.length+'명 · 몬스터 '+m.enemies.length+'마리 · seq '+m.seq;
+   if(m.type==='error')panel.textContent='🔴 서버 오류: '+String(m.message).slice(0,90);
+  }catch{}
+ });
+ ws.addEventListener('error',()=>{panel.textContent='🔴 WebSocket 연결 오류 · Render 로그 확인'});
+ ws.addEventListener('close',()=>{if(!closed){panel.textContent='🟠 서버 연결 종료 · 5초 후 재시도';retry=setTimeout(connect,5000)}});
+}
+window.addEventListener('pagehide',()=>{closed=true;clearTimeout(retry);ws?.close()},{once:true});
+connect();
+})();
 </script></body></html>
