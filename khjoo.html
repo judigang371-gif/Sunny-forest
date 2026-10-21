@@ -2135,24 +2135,26 @@ const panel=document.createElement('div');
 panel.style.cssText='position:fixed;left:10px;top:10px;z-index:99999;background:#142236ed;color:white;padding:12px;border:1px solid #5eead4;border-radius:10px;font:13px system-ui;max-width:260px;box-shadow:0 4px 18px #0008';
 panel.textContent='🌐 서버 연결 확인 중…';
 document.body.appendChild(panel);
-let ws,closed=false,retry;
+let ws,closed=false,retry,serverEnemies=[];
+const radar=document.createElement('canvas');radar.width=240;radar.height=180;radar.style.cssText='display:block;margin-top:8px;background:#081527;border-radius:6px';panel.appendChild(radar);
+function drawRadar(){if(closed)return;const ctx=radar.getContext('2d');ctx.clearRect(0,0,240,180);ctx.fillStyle='#081527';ctx.fillRect(0,0,240,180);for(const e of serverEnemies){if(!Number.isFinite(e.x)||!Number.isFinite(e.y))continue;const x=e.x/1600*240,y=e.y/1300*180;ctx.fillStyle='#fb7185';ctx.beginPath();ctx.arc(x,y,5,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff';ctx.font='10px sans-serif';ctx.fillText(Math.ceil(e.hp)+' HP',x+7,y-3)}requestAnimationFrame(drawRadar)}drawRadar();
 function connect(){
  if(closed)return;
- panel.textContent='🌐 Render WebSocket 연결 중…';
+ panel.firstChild.textContent='🌐 Render WebSocket 연결 중…';
  ws=new WebSocket(endpoint);
  ws.addEventListener('open',()=>{
-  panel.textContent='🟢 WebSocket 연결됨 · 서버 입장 요청 중';
+  panel.firstChild.textContent='🟢 WebSocket 연결됨 · 서버 입장 요청 중';
   ws.send(JSON.stringify({type:'join',map:'forest',name:'연결 테스트',x:200,y:200}));
  });
  ws.addEventListener('message',ev=>{
   try{const m=JSON.parse(ev.data);
-   if(m.type==='welcome')panel.textContent='🟢 서버 입장 성공 · ID '+String(m.id).slice(0,8);
-   if(m.type==='snapshot')panel.textContent='🟢 서버 정상 동기화 · 플레이어 '+m.players.length+'명 · 몬스터 '+m.enemies.length+'마리 · seq '+m.seq;
-   if(m.type==='error')panel.textContent='🔴 서버 오류: '+String(m.message).slice(0,90);
+   if(m.type==='welcome')panel.firstChild.textContent='🟢 서버 입장 성공 · ID '+String(m.id).slice(0,8);
+   if(m.type==='snapshot'){serverEnemies=Array.isArray(m.enemies)?m.enemies:[];panel.firstChild.textContent='🟢 서버 정상 동기화 · 플레이어 '+m.players.length+'명 · 몬스터 '+m.enemies.length+'마리 · seq '+m.seq;}
+   if(m.type==='error')panel.firstChild.textContent='🔴 서버 오류: '+String(m.message).slice(0,90);
   }catch{}
  });
- ws.addEventListener('error',()=>{panel.textContent='🔴 WebSocket 연결 오류 · Render 로그 확인'});
- ws.addEventListener('close',()=>{if(!closed){panel.textContent='🟠 서버 연결 종료 · 5초 후 재시도';retry=setTimeout(connect,5000)}});
+ ws.addEventListener('error',()=>{panel.firstChild.textContent='🔴 WebSocket 연결 오류 · Render 로그 확인'});
+ ws.addEventListener('close',()=>{if(!closed){panel.firstChild.textContent='🟠 서버 연결 종료 · 5초 후 재시도';retry=setTimeout(connect,5000)}});
 }
 window.addEventListener('pagehide',()=>{closed=true;clearTimeout(retry);ws?.close()},{once:true});
 connect();
