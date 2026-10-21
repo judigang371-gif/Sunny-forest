@@ -81,7 +81,7 @@ wss.on('connection',ws=>{
     if(d>105||d>=best||(ex*dx+ey*dy)/(Math.max(1,d)*len)<-.1)continue;hit=e;best=d}
    if(hit){hit.hp=Math.max(0,hit.hp-8);send(ws,{type:'attackResult',hit:true,enemyId:hit.id,hp:hit.hp});
     if(hit.hp<=0){room.enemies.delete(hit.id);send(ws,{type:'kill',enemyId:hit.id})}
-   }else send(ws,{type:'attackResult',hit:false});
+   }else {let nearest=Infinity;for(const e of room.enemies.values())nearest=Math.min(nearest,Math.hypot(e.x-player.x,e.y-player.y));send(ws,{type:'attackResult',hit:false,distance:Number.isFinite(nearest)?nearest:null,range:105});}
   }
  });
  ws.on('close',()=>{if(room){room.players.delete(id);if(!room.players.size){room.enemies.clear();room.projectiles=[]}}});
